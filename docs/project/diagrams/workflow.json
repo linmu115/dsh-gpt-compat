@@ -1,0 +1,235 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "请求路由与两种压缩 · 当前功能路径",
+    "subtitle": "真实 CPA 工具、v2 原生压缩与进程恢复通过；估计预算，产品安装待验收。",
+    "locale": "zh-CN",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    {
+      "id": "host",
+      "label": "DSH 会话与步骤边界"
+    },
+    {
+      "id": "native",
+      "label": "GPT 原生上下文模块"
+    },
+    {
+      "id": "portable",
+      "label": "通用上下文模块"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "input",
+      "lane": "host",
+      "col": 0,
+      "type": "frontend",
+      "label": "输入 / 切换模型",
+      "sublabel": "保留当前请求的一致性",
+      "width": 145,
+      "height": 84
+    },
+    {
+      "id": "freeze",
+      "lane": "host",
+      "col": 1,
+      "type": "backend",
+      "label": "捕获本步骤路由",
+      "sublabel": "绑定提供商 / 模型范围",
+      "width": 145,
+      "height": 84
+    },
+    {
+      "id": "native-history",
+      "lane": "native",
+      "col": 2,
+      "type": "backend",
+      "label": "接续原生历史",
+      "sublabel": "兼容检查点 + 后续原文",
+      "width": 145,
+      "height": 84
+    },
+    {
+      "id": "native-budget",
+      "lane": "native",
+      "col": 3,
+      "type": "backend",
+      "label": "按需原生压缩",
+      "sublabel": "分批压缩 / 不混用摘要",
+      "width": 145,
+      "height": 84
+    },
+    {
+      "id": "native-call",
+      "lane": "native",
+      "col": 4,
+      "type": "external",
+      "label": "发送 GPT 请求",
+      "sublabel": "兼容工具 / 完整状态",
+      "width": 145,
+      "height": 84
+    },
+    {
+      "id": "native-fail",
+      "lane": "native",
+      "col": 5,
+      "type": "backend",
+      "label": "失败保留原状态",
+      "sublabel": "明确报告 / 不提交半成品",
+      "width": 145,
+      "height": 84
+    },
+    {
+      "id": "portable-history",
+      "lane": "portable",
+      "col": 2,
+      "type": "backend",
+      "label": "接续通用历史",
+      "sublabel": "原文或摘要 + 后续原文",
+      "width": 145,
+      "height": 84
+    },
+    {
+      "id": "portable-budget",
+      "lane": "portable",
+      "col": 3,
+      "type": "backend",
+      "label": "独立检查预算",
+      "sublabel": "装得下则不生成摘要",
+      "width": 145,
+      "height": 84
+    },
+    {
+      "id": "portable-call",
+      "lane": "portable",
+      "col": 4,
+      "type": "external",
+      "label": "发送普通请求",
+      "sublabel": "不包含原生加密状态",
+      "width": 145,
+      "height": 84
+    },
+    {
+      "id": "portable-fail",
+      "lane": "portable",
+      "col": 5,
+      "type": "backend",
+      "label": "失败保留原状态",
+      "sublabel": "另一侧和原文仍完整",
+      "width": 145,
+      "height": 84
+    },
+    {
+      "id": "record",
+      "lane": "host",
+      "col": 5,
+      "type": "database",
+      "label": "保存本次新历史",
+      "sublabel": "结果 / 工具配对 / 后续接续",
+      "width": 145,
+      "height": 84
+    }
+  ],
+  "edges": [
+    {
+      "id": "input-freeze",
+      "from": "input",
+      "to": "freeze",
+      "label": "安全步骤",
+      "role": "main"
+    },
+    {
+      "id": "bound",
+      "from": "freeze",
+      "to": "native-history",
+      "label": "匹配绑定",
+      "role": "main"
+    },
+    {
+      "id": "native-check",
+      "from": "native-history",
+      "to": "native-budget",
+      "label": "完整新增历史",
+      "role": "main"
+    },
+    {
+      "id": "native-ready",
+      "from": "native-budget",
+      "to": "native-call",
+      "label": "预算内",
+      "role": "main"
+    },
+    {
+      "id": "native-record",
+      "from": "native-call",
+      "to": "record",
+      "label": "返回结果",
+      "role": "main"
+    },
+    {
+      "id": "native-error",
+      "from": "native-budget",
+      "to": "native-fail",
+      "label": "失败 / 取消",
+      "role": "error",
+      "route": "bottom-channel"
+    },
+    {
+      "id": "unbound",
+      "from": "freeze",
+      "to": "portable-history",
+      "label": "其他路线",
+      "role": "branch"
+    },
+    {
+      "id": "portable-check",
+      "from": "portable-history",
+      "to": "portable-budget",
+      "label": "完整新增历史",
+      "role": "branch"
+    },
+    {
+      "id": "portable-ready",
+      "from": "portable-budget",
+      "to": "portable-call",
+      "label": "预算内",
+      "role": "branch"
+    },
+    {
+      "id": "portable-record",
+      "from": "portable-call",
+      "to": "record",
+      "label": "返回结果",
+      "role": "branch"
+    },
+    {
+      "id": "portable-error",
+      "from": "portable-budget",
+      "to": "portable-fail",
+      "label": "失败 / 取消",
+      "role": "error",
+      "route": "bottom-channel"
+    }
+  ],
+  "mainPath": [
+    "input",
+    "freeze",
+    "native-history",
+    "native-budget",
+    "native-call",
+    "record"
+  ],
+  "semanticChecks": {
+    "allowedRoots": [
+      "input"
+    ],
+    "allowedTerminals": [
+      "record",
+      "native-fail",
+      "portable-fail"
+    ]
+  }
+}

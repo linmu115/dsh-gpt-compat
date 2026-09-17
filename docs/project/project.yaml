@@ -1,0 +1,97 @@
+{
+  "schema": "project-map/v1",
+  "project_id": "44777027-4ab9-4c93-b9df-1e21ce65ec6a",
+  "name": "DSH GPT 兼容插件 · 工具、重放与两版压缩",
+  "kind": "software",
+  "map": "map.md",
+  "sources": [],
+  "bindings": [],
+  "archify": {
+    "architecture": {
+      "source": "diagrams/architecture.json",
+      "node_records": {
+        "selection": [
+          "INT-dsh",
+          "IF-profile"
+        ],
+        "services": [
+          "INT-dsh",
+          "MOD-tools"
+        ],
+        "history": [
+          "OBJ-context",
+          "INT-maintenance"
+        ],
+        "binding": [
+          "MOD-routing",
+          "IF-profile"
+        ],
+        "tools": [
+          "MOD-tools"
+        ],
+        "protocol": [
+          "MOD-provider"
+        ],
+        "context": [
+          "MOD-context",
+          "IF-context"
+        ],
+        "native": [
+          "MOD-context",
+          "OBJ-context"
+        ],
+        "portable": [
+          "MOD-context",
+          "OBJ-context"
+        ],
+        "cpa": [
+          "MOD-provider",
+          "REQ-gpt-compatibility"
+        ],
+        "ordinary": [
+          "IF-context"
+        ]
+      }
+    },
+    "workflow": {
+      "source": "diagrams/workflow.json",
+      "node_records": {
+        "input": [
+          "REQ-gpt-compatibility"
+        ],
+        "freeze": [
+          "MOD-routing",
+          "IF-profile"
+        ],
+        "native-history": [
+          "IF-context"
+        ],
+        "native-budget": [
+          "MOD-context"
+        ],
+        "native-call": [
+          "MOD-provider",
+          "MOD-tools"
+        ],
+        "native-fail": [
+          "IF-context"
+        ],
+        "portable-history": [
+          "IF-context"
+        ],
+        "portable-budget": [
+          "MOD-context"
+        ],
+        "portable-call": [
+          "INT-dsh"
+        ],
+        "portable-fail": [
+          "IF-context"
+        ],
+        "record": [
+          "OBJ-context"
+        ]
+      }
+    }
+  }
+}

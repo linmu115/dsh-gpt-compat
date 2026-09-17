@@ -1,0 +1,11 @@
+node_modules/
+lib/
+*.tsbuildinfo
+coverage/
+artifacts/
+tsconfig.*.generated.json
+docs/project/views/
+.env
+.env.*
+!.env.example
+*.log

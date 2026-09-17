@@ -1,0 +1,5 @@
+- insert:
+    - id: gpt-compat
+      name: dsh-gpt-compat
+      config:
+        bindings: []

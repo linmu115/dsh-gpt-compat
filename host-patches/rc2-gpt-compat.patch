@@ -1,0 +1,3033 @@
+diff --git a/docs/architecture.i18n.yaml b/docs/architecture.i18n.yaml
+index d591a9fa3..4df61e029 100644
+--- a/docs/architecture.i18n.yaml
++++ b/docs/architecture.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write docs/architecture.md
+-architecture.md: 688341582044e72e8548c8e6b1535450793ddce4
+-architecture.zh.md: 6817986015a2aa90d6fcb094da3e972ccfe08483
++architecture.md: 590948f8734ea52370363ad081261a4564b4de78
++architecture.zh.md: 33a12abf7d551d153b42a74432228e6fc9162f65
+diff --git a/docs/architecture.md b/docs/architecture.md
+index 688341582..590948f87 100644
+--- a/docs/architecture.md
++++ b/docs/architecture.md
+@@ -6,6 +6,8 @@ Read this before changing anything under `packages/`. It assumes you know Cordis
+ 
+ We recommend using an agent to explore the codebase and understand its architecture.
+ 
++Prompt assembly resolves routes before [scoped preparation](subsystems/system-prompt.md). Compatibility plugins update per-step registrations without rewriting frozen requests; previews do not advance selection.
++
+ ## Cordis
+ 
+ [Cordis](cordis-primer.md) is the framework under dsh: plugins contribute services, typed events, and reversible effects to a shared context. Every part of the product is a plugin, including the model adapter, the tool registry, the session log, and the agent loop itself, so each is replaceable from configuration.
+@@ -158,3 +160,5 @@ New behavior attaches to a documented extension point. Changing the loop itself
+ | Scope a registration to one agent | use that agent's `agent.ctx` |
+ 
+ The [extension cookbook](cookbook/extension-cookbook.md) maps features to capabilities and indexes the step-by-step guides for [packages](cookbook/adding-a-package.md), [tools](cookbook/adding-a-tool.md), [LLM adapters](cookbook/adding-an-llm-adapter.md), and [settings cards](cookbook/adding-a-settings-card.md). The [Conversation subsystem](subsystems/conversation.md) owns Chat-node assembly.
++
++Request selection is durable and adapter-scoped ([decision](../.agents/notes/implemented/architecture/2026-09-17-durable-context-selection.md)).
+diff --git a/docs/architecture.zh.md b/docs/architecture.zh.md
+index 681798601..33a12abf7 100644
+--- a/docs/architecture.zh.md
++++ b/docs/architecture.zh.md
+@@ -6,6 +6,8 @@
+ 
+ 建议使用 agent（智能体）探索代码库并理解其架构。
+ 
++提示词组装先解析路由，再执行[作用域准备](subsystems/system-prompt.zh.md)。兼容插件在此更新步骤注册，无需改写冻结请求；预览不推进选择。
++
+ ## Cordis
+ 
+ [Cordis](cordis-primer.zh.md) 是 dsh 底层的框架：插件向共享上下文贡献服务、类型化事件和可逆的副作用。产品的每一部分都是插件，包括模型适配器、工具注册表、会话日志，以及 agent loop（智能体循环）本身，因此每个都可以从配置替换。
+@@ -162,3 +164,5 @@ seam 正是替换一个提供方就能改变整个产品的原因。文件系统
+ | 将注册项限定到单个 agent | 使用该 agent 的 `agent.ctx` |
+ 
+ [扩展实操手册](cookbook/extension-cookbook.zh.md)将功能映射到能力，并索引[包](cookbook/adding-a-package.zh.md)、[工具](cookbook/adding-a-tool.zh.md)、[LLM（大语言模型）适配器](cookbook/adding-an-llm-adapter.zh.md)和[设置卡片](cookbook/adding-a-settings-card.zh.md)的分步指南。[Conversation 子系统](subsystems/conversation.zh.md)负责 Chat node 组装。
++
++请求选择会持久化，并受适配器范围约束（[决策](../.agents/notes/implemented/architecture/2026-09-17-durable-context-selection.zh.md)）。
+diff --git a/docs/persistence-catalog.i18n.yaml b/docs/persistence-catalog.i18n.yaml
+index 389c95a40..ed68109fd 100644
+--- a/docs/persistence-catalog.i18n.yaml
++++ b/docs/persistence-catalog.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write docs/persistence-catalog.md
+-persistence-catalog.md: 46e91f23a7aad053791df190f769ad911f334b68
+-persistence-catalog.zh.md: 087915b83d4dfd5c45a1583658d6ebe091904a3f
++persistence-catalog.md: d30bdf5c5ca667d48c1970b2382cd9f1194c89ce
++persistence-catalog.zh.md: a3cef5459011ff4a2e7fefbdb02aaf810377509a
+diff --git a/docs/persistence-catalog.md b/docs/persistence-catalog.md
+index 46e91f23a..d30bdf5c5 100644
+--- a/docs/persistence-catalog.md
++++ b/docs/persistence-catalog.md
+@@ -83,7 +83,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
+ }[T]
+ ```
+ 
+-Sources: [`packages/core/session/src/types.ts:404`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:412`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:434`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:465`](../packages/core/session/src/types.ts)
++Sources: [`packages/core/session/src/types.ts:416`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:424`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:446`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:477`](../packages/core/session/src/types.ts)
+ 
+ ## Events
+ 
+@@ -210,7 +210,7 @@ Source: [`packages/interaction/user-approval/src/index.ts:33`](../packages/inter
+ 'assistant/attempt': { turn: number; step: number; stream: AssistantStreamRecord[] }
+ ```
+ 
+-Source: [`packages/core/session/src/types.ts:335`](../packages/core/session/src/types.ts)
++Source: [`packages/core/session/src/types.ts:347`](../packages/core/session/src/types.ts)
+ 
+ <a id="assistantmessage--surface"></a>
+ 
+@@ -240,7 +240,7 @@ Source: [`packages/core/session/src/types.ts:335`](../packages/core/session/src/
+ 
+ Types: [TokenUsage](subsystems/llm-streaming.md)
+ 
+-Source: [`packages/core/session/src/types.ts:321`](../packages/core/session/src/types.ts)
++Source: [`packages/core/session/src/types.ts:333`](../packages/core/session/src/types.ts)
+ 
+ ### `command/*`
+ 
+@@ -396,6 +396,52 @@ Types: [ContentBlock](subsystems/core.md) · [TokenUsage](subsystems/llm-streami
+ 
+ Source: [`packages/compaction/compaction/src/types.ts:34`](../packages/compaction/compaction/src/types.ts)
+ 
++### `context/*`
++
++<a id="contextcheckpoint--log-only"></a>
++
++#### `context/checkpoint` — log-only
++
++```ts persistence-catalog
++/** Complete candidate checkpoint; selectable only after its commit marker. */
++'context/checkpoint': { key: string; state: JsonValue }
++```
++
++Source: [`packages/core/session/src/types.ts:273`](../packages/core/session/src/types.ts)
++
++<a id="contextcheckpoint-commit--log-only"></a>
++
++#### `context/checkpoint-commit` — log-only
++
++```ts persistence-catalog
++/** Publishes an earlier checkpoint whose candidate data passed a durability barrier. */
++'context/checkpoint-commit': { checkpoint: SessionSeq }
++```
++
++Source: [`packages/core/session/src/types.ts:275`](../packages/core/session/src/types.ts)
++
++<a id="contextoperation--log-only"></a>
++
++#### `context/operation` — log-only
++
++```ts persistence-catalog
++/** Exact auxiliary compaction input admitted before dispatch. */
++'context/operation': { kind: 'native-compact' | 'portable-summary'; request: JsonValue }
++```
++
++Source: [`packages/core/session/src/types.ts:277`](../packages/core/session/src/types.ts)
++
++<a id="contextoperation-result--log-only"></a>
++
++#### `context/operation-result` — log-only
++
++```ts persistence-catalog
++/** Successful auxiliary output correlated with its logged input. */
++'context/operation-result': { operation: SessionSeq; output: JsonValue }
++```
++
++Source: [`packages/core/session/src/types.ts:279`](../packages/core/session/src/types.ts)
++
+ ### `deliverables/*`
+ 
+ <a id="deliverablespresented--log-only"></a>
+@@ -605,7 +651,7 @@ Source: [`packages/plan/plan-mode/src/index.ts:46`](../packages/plan/plan-mode/s
+ 'request/context': RequestContext
+ ```
+ 
+-Source: [`packages/core/session/src/types.ts:377`](../packages/core/session/src/types.ts)
++Source: [`packages/core/session/src/types.ts:389`](../packages/core/session/src/types.ts)
+ 
+ <a id="requestheader--log-only"></a>
+ 
+@@ -624,7 +670,18 @@ Source: [`packages/core/session/src/types.ts:377`](../packages/core/session/src/
+ }
+ ```
+ 
+-Source: [`packages/core/session/src/types.ts:365`](../packages/core/session/src/types.ts)
++Source: [`packages/core/session/src/types.ts:377`](../packages/core/session/src/types.ts)
++
++<a id="requestprojection--log-only"></a>
++
++#### `request/projection` — log-only
++
++```ts persistence-catalog
++/** Selected request messages and native prefix; null restores ordinary surface derivation. */
++'request/projection': { messages: Message[] | null; adapterContext?: AdapterContext }
++```
++
++Source: [`packages/core/session/src/types.ts:281`](../packages/core/session/src/types.ts)
+ 
+ ### `sandbox/*`
+ 
+@@ -699,7 +756,7 @@ Source: [`packages/schedule/schedule/src/types.ts:219`](../packages/schedule/sch
+ 'session/end-seed': { inherited?: true }
+ ```
+ 
+-Source: [`packages/core/session/src/types.ts:400`](../packages/core/session/src/types.ts)
++Source: [`packages/core/session/src/types.ts:412`](../packages/core/session/src/types.ts)
+ 
+ <a id="sessiontitle--log-only"></a>
+ 
+@@ -761,7 +818,7 @@ Source: [`packages/session/session-log-deepseek/src/types.ts:81`](../packages/se
+ 'step/end': { turn: number; step: number }
+ ```
+ 
+-Source: [`packages/core/session/src/types.ts:289`](../packages/core/session/src/types.ts)
++Source: [`packages/core/session/src/types.ts:301`](../packages/core/session/src/types.ts)
+ 
+ <a id="stepstart--log-only"></a>
+ 
+@@ -772,7 +829,7 @@ Source: [`packages/core/session/src/types.ts:289`](../packages/core/session/src/
+ 'step/start': { turn: number; step: number }
+ ```
+ 
+-Source: [`packages/core/session/src/types.ts:287`](../packages/core/session/src/types.ts)
++Source: [`packages/core/session/src/types.ts:299`](../packages/core/session/src/types.ts)
+ 
+ ### `subagent/*`
+ 
+@@ -848,7 +905,7 @@ Source: [`packages/subagent/tool-subagent/src/model-selection-state.ts:17`](../p
+ 'system/message': { turn: number; step: number; message: SystemMessage }
+ ```
+ 
+-Source: [`packages/core/session/src/types.ts:310`](../packages/core/session/src/types.ts)
++Source: [`packages/core/session/src/types.ts:322`](../packages/core/session/src/types.ts)
+ 
+ ### `team/*`
+ 
+@@ -941,7 +998,7 @@ Source: [`packages/todo/tool-todo/src/types.ts:31`](../packages/todo/tool-todo/s
+ 
+ Types: [ToolCallId](subsystems/core.md)
+ 
+-Source: [`packages/core/session/src/types.ts:341`](../packages/core/session/src/types.ts)
++Source: [`packages/core/session/src/types.ts:353`](../packages/core/session/src/types.ts)
+ 
+ <a id="toolptc-dispatch--log-only"></a>
+ 
+@@ -1017,7 +1074,7 @@ Source: [`packages/core/tools/src/types.ts:40`](../packages/core/tools/src/types
+ }
+ ```
+ 
+-Source: [`packages/core/session/src/types.ts:353`](../packages/core/session/src/types.ts)
++Source: [`packages/core/session/src/types.ts:365`](../packages/core/session/src/types.ts)
+ 
+ ### `tool-workflow/*`
+ 
+@@ -1097,7 +1154,7 @@ Source: [`packages/workflow/tool-workflow/src/types.ts:47`](../packages/workflow
+ 
+ Types: [TurnEndReason](subsystems/session.md)
+ 
+-Source: [`packages/core/session/src/types.ts:285`](../packages/core/session/src/types.ts)
++Source: [`packages/core/session/src/types.ts:297`](../packages/core/session/src/types.ts)
+ 
+ <a id="turnstart--log-only"></a>
+ 
+@@ -1113,7 +1170,7 @@ Source: [`packages/core/session/src/types.ts:285`](../packages/core/session/src/
+ 'turn/start': { turn: number }
+ ```
+ 
+-Source: [`packages/core/session/src/types.ts:276`](../packages/core/session/src/types.ts)
++Source: [`packages/core/session/src/types.ts:288`](../packages/core/session/src/types.ts)
+ 
+ ### `user/*`
+ 
+@@ -1132,7 +1189,7 @@ Source: [`packages/core/session/src/types.ts:276`](../packages/core/session/src/
+ 'user/message': UserMessage
+ ```
+ 
+-Source: [`packages/core/session/src/types.ts:297`](../packages/core/session/src/types.ts)
++Source: [`packages/core/session/src/types.ts:309`](../packages/core/session/src/types.ts)
+ 
+ ### `web/*`
+ 
+diff --git a/docs/persistence-catalog.zh.md b/docs/persistence-catalog.zh.md
+index 087915b83..a3cef5459 100644
+--- a/docs/persistence-catalog.zh.md
++++ b/docs/persistence-catalog.zh.md
+@@ -398,6 +398,52 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
+ 
+ 来源：[`packages/compaction/compaction/src/types.ts:34`](../packages/compaction/compaction/src/types.ts)
+ 
++### `context/*`
++
++<a id="contextcheckpoint--log-only"></a>
++
++#### `context/checkpoint` — 仅日志
++
++```ts persistence-catalog
++/** Complete candidate checkpoint; selectable only after its commit marker. */
++'context/checkpoint': { key: string; state: JsonValue }
++```
++
++来源： [`packages/core/session/src/types.ts:273`](../packages/core/session/src/types.ts)
++
++<a id="contextcheckpoint-commit--log-only"></a>
++
++#### `context/checkpoint-commit` — 仅日志
++
++```ts persistence-catalog
++/** Publishes an earlier checkpoint whose candidate data passed a durability barrier. */
++'context/checkpoint-commit': { checkpoint: SessionSeq }
++```
++
++来源： [`packages/core/session/src/types.ts:275`](../packages/core/session/src/types.ts)
++
++<a id="contextoperation--log-only"></a>
++
++#### `context/operation` — 仅日志
++
++```ts persistence-catalog
++/** Exact auxiliary compaction input admitted before dispatch. */
++'context/operation': { kind: 'native-compact' | 'portable-summary'; request: JsonValue }
++```
++
++来源： [`packages/core/session/src/types.ts:277`](../packages/core/session/src/types.ts)
++
++<a id="contextoperation-result--log-only"></a>
++
++#### `context/operation-result` — 仅日志
++
++```ts persistence-catalog
++/** Successful auxiliary output correlated with its logged input. */
++'context/operation-result': { operation: SessionSeq; output: JsonValue }
++```
++
++来源： [`packages/core/session/src/types.ts:279`](../packages/core/session/src/types.ts)
++
+ ### `deliverables/*`
+ 
+ <a id="deliverablespresented--log-only"></a>
+@@ -628,6 +674,17 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
+ 
+ 来源：[`packages/core/session/src/types.ts:365`](../packages/core/session/src/types.ts)
+ 
++<a id="requestprojection--log-only"></a>
++
++#### `request/projection` — 仅日志
++
++```ts persistence-catalog
++/** Selected request messages and native prefix; null restores ordinary surface derivation. */
++'request/projection': { messages: Message[] | null; adapterContext?: AdapterContext }
++```
++
++来源： [`packages/core/session/src/types.ts:281`](../packages/core/session/src/types.ts)
++
+ ### `sandbox/*`
+ 
+ <a id="sandboxmode--log-only"></a>
+diff --git a/docs/subsystems/core.i18n.yaml b/docs/subsystems/core.i18n.yaml
+index 07faf5ab8..821cf02fe 100644
+--- a/docs/subsystems/core.i18n.yaml
++++ b/docs/subsystems/core.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write docs/subsystems/core.md
+-core.md: 27ff30a9e63c86ffb54ccf57dea18ebf3fe39846
+-core.zh.md: cedd113de5d5d551b8b558f9f33c7cacf6aa4953
++core.md: db972230a223a441292927ec977fd4b3c3c252b8
++core.zh.md: 2d0383d93e2c34d80657880d811ca14b67771ef4
+diff --git a/docs/subsystems/core.md b/docs/subsystems/core.md
+index 27ff30a9e..db972230a 100644
+--- a/docs/subsystems/core.md
++++ b/docs/subsystems/core.md
+@@ -1270,3 +1270,11 @@ One session committed a different agent preset to its durable log. Consumers inv
+ 
+ Source: [`packages/preset/agent-presets/src/types.ts`](../../packages/preset/agent-presets/src/types.ts)
+ <!-- END GENERATED cordis-surface -->
++
++```ts type-equiv
++/** Context selection before request freezing, with the original durable surface and prepared route. */
++type AgentContextProvider = (
++  request: import('@deepseek-ai/dsh-llm').GenerateOptions,
++  prepared: import('@deepseek-ai/dsh-llm').PreparedLlmCall | undefined,
++) => Promise<import('@deepseek-ai/dsh-session').SessionEventMap['request/projection']>
++```
+diff --git a/docs/subsystems/core.zh.md b/docs/subsystems/core.zh.md
+index cedd113de..2d0383d93 100644
+--- a/docs/subsystems/core.zh.md
++++ b/docs/subsystems/core.zh.md
+@@ -1280,3 +1280,11 @@ One session committed a different agent preset to its durable log. Consumers inv
+ 
+ Source: [`packages/preset/agent-presets/src/types.ts`](../../packages/preset/agent-presets/src/types.ts)
+ <!-- END GENERATED cordis-surface -->
++
++```ts type-equiv
++/** Context selection before request freezing, with the original durable surface and prepared route. */
++type AgentContextProvider = (
++  request: import('@deepseek-ai/dsh-llm').GenerateOptions,
++  prepared: import('@deepseek-ai/dsh-llm').PreparedLlmCall | undefined,
++) => Promise<import('@deepseek-ai/dsh-session').SessionEventMap['request/projection']>
++```
+diff --git a/docs/subsystems/filesystem.i18n.yaml b/docs/subsystems/filesystem.i18n.yaml
+index e73eb155f..d143b389b 100644
+--- a/docs/subsystems/filesystem.i18n.yaml
++++ b/docs/subsystems/filesystem.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write docs/subsystems/filesystem.md
+-filesystem.md: c93d5e250860c19ab41f133848f5038b78f1bd57
+-filesystem.zh.md: e9011d35b9a52fd42439a23e78fe4bff7ae41c11
++filesystem.md: 6799c6c09d1d3b3ceca16e5ad9329bffacc914aa
++filesystem.zh.md: c918af0c9d6be90fde14b58abcbcd825fc4a7012
+diff --git a/docs/subsystems/filesystem.md b/docs/subsystems/filesystem.md
+index c93d5e250..6799c6c09 100644
+--- a/docs/subsystems/filesystem.md
++++ b/docs/subsystems/filesystem.md
+@@ -8,6 +8,8 @@ The optional filesystem capability has four parts: [dsh-fs](../../packages/fs/fs
+ 
+ Provider source: [`packages/fs/fs/src/types.ts`](../../packages/fs/fs/src/types.ts) and [`packages/fs/fs/src/index.ts`](../../packages/fs/fs/src/index.ts). Policy source: [`packages/fs/fs-observation-policy/src/types.ts`](../../packages/fs/fs-observation-policy/src/types.ts). Read-rendering source: [`packages/fs/tool-fs/src/read-render.ts`](../../packages/fs/tool-fs/src/read-render.ts).
+ 
++`FileSystem.supportsFileRemoval` advertises guarded single-file deletion. `removeFile(target, { version }, signal?, sandboxPolicy?)` rejects unsupported providers, stale versions and directories. Local providers serialize deletion with text writes; the sandbox provider applies current-path containment before removal.
++
+ ## Target identity and metadata (provider contract)
+ 
+ Every operation resolves a user-supplied path to an opaque backend target first. Consumers may display `displayPath`, but must not parse `targetKey` (a branded opaque id) or assume it is a local absolute path.
+diff --git a/docs/subsystems/filesystem.zh.md b/docs/subsystems/filesystem.zh.md
+index e9011d35b..c918af0c9 100644
+--- a/docs/subsystems/filesystem.zh.md
++++ b/docs/subsystems/filesystem.zh.md
+@@ -8,6 +8,8 @@
+ 
+ 提供方源码：[`packages/fs/fs/src/types.ts`](../../packages/fs/fs/src/types.ts) 与 [`packages/fs/fs/src/index.ts`](../../packages/fs/fs/src/index.ts)。策略源码：[`packages/fs/fs-observation-policy/src/types.ts`](../../packages/fs/fs-observation-policy/src/types.ts)。读取渲染源码：[`packages/fs/tool-fs/src/read-render.ts`](../../packages/fs/tool-fs/src/read-render.ts)。
+ 
++`FileSystem.supportsFileRemoval` 声明受保护的单文件删除能力。`removeFile(target, { version }, signal?, sandboxPolicy?)` 拒绝不支持的提供方、过期版本及目录。本地提供方将删除与文本写入串行化；沙箱提供方在删除前执行当前路径包含检查。
++
+ ## 目标标识与元数据（提供方约定）
+ 
+ 每个操作首先将用户提供的路径解析为不透明的后端目标。消费方可以显示 `displayPath`，但禁止解析 `targetKey`（一个品牌化的不透明 id），也不得假设它是本地绝对路径。
+diff --git a/docs/subsystems/llm-streaming.i18n.yaml b/docs/subsystems/llm-streaming.i18n.yaml
+index ff5cdfed8..e23d0ff00 100644
+--- a/docs/subsystems/llm-streaming.i18n.yaml
++++ b/docs/subsystems/llm-streaming.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write docs/subsystems/llm-streaming.md
+-llm-streaming.md: cadfda5553ca5d5e0df78f40b6a7a75ef7cc71a6
+-llm-streaming.zh.md: 5f73d544459268ce83a30218b710dd7c29f7a614
++llm-streaming.md: b845ad9d779f4c97b767b02577cb4ab7bcc17826
++llm-streaming.zh.md: b80b436a965cc8d38556201a7772382c878cf20b
+diff --git a/docs/subsystems/llm-streaming.md b/docs/subsystems/llm-streaming.md
+index cadfda555..b845ad9d7 100644
+--- a/docs/subsystems/llm-streaming.md
++++ b/docs/subsystems/llm-streaming.md
+@@ -572,6 +572,8 @@ interface LlmResolvedModelInfo extends LlmModelInfo {
+ ```ts type-equiv
+ /** A single model request, fully assembled. */
+ interface GenerateOptions {
++  /** Logged native prefix selected before freezing; incompatible adapters must reject it. */
++  adapterContext?: AdapterContext
+   /** Registered provider route selecting the adapter instance. */
+   provider: string
+   model: string
+@@ -750,6 +752,8 @@ The [wire reference](../deepseek-llm-api-wire-extensions.md) defines the exact r
+ ```ts type-equiv
+ /** One model call whose config and adapter registration were resolved together. */
+ interface PreparedLlmCall {
++  /** Context operations captured with this exact adapter generation. */
++  readonly nativeContext?: import('./types.ts').NativeContextCapability
+   /** Detached, deep-frozen config with any adapter-owned default materialized. */
+   readonly config: LlmCallConfig
+   /** Immutable retry policy captured with the adapter registration. */
+@@ -1088,3 +1092,45 @@ Waterfall around every streaming model call (retry, replay, routing). Bound to t
+ 
+ Source: [`packages/llm/llm/src/index.ts`](../../packages/llm/llm/src/index.ts)
+ <!-- END GENERATED cordis-surface -->
++
++```ts type-equiv
++/** Logged provider-native prefix; only the matching prepared adapter may interpret it. */
++interface AdapterContext {
++  /** Versioned wire representation owned by the adapter. */
++  format: string
++  /** Compatibility identity captured with endpoint and credentials. */
++  scope: string
++  /** Complete native prefix, including retained items; messages carry its following delta. */
++  input: JsonValue[]
++}
++```
++
++```ts type-equiv
++/** Native context operations bound to one prepared adapter generation. */
++interface NativeContextCapability {
++  /** Versioned native input representation. */
++  readonly format: string
++  /** Compatibility identity for stored prefixes. */
++  readonly scope: string
++  /**
++   * Convert a balanced history region without executing tools.
++   * @param messages - complete ordered messages with balanced tool interactions.
++   * @returns native items for this adapter generation.
++   */
++  encode(messages: Message[]): JsonValue[]
++  /**
++   * Count complete input, including current instructions and tools.
++   * @param options - current request controls, instructions, tools and cancellation.
++   * @param input - complete native prefix and following items.
++   * @returns effective input tokens, including opaque context.
++   */
++  count(options: GenerateOptions, input: JsonValue[]): Promise<number>
++  /**
++   * Return a complete compacted prefix; callers own budgeting and durable publication.
++   * @param options - current instructions and cancellation for the prepared route.
++   * @param input - bounded complete input window.
++   * @returns all returned items, including retained originals and opaque state.
++   */
++  compact(options: GenerateOptions, input: JsonValue[]): Promise<JsonValue[]>
++}
++```
+diff --git a/docs/subsystems/llm-streaming.zh.md b/docs/subsystems/llm-streaming.zh.md
+index 5f73d5444..b80b436a9 100644
+--- a/docs/subsystems/llm-streaming.zh.md
++++ b/docs/subsystems/llm-streaming.zh.md
+@@ -578,6 +578,8 @@ interface LlmResolvedModelInfo extends LlmModelInfo {
+ ```ts type-equiv
+ /** A single model request, fully assembled. */
+ interface GenerateOptions {
++  /** Logged native prefix selected before freezing; incompatible adapters must reject it. */
++  adapterContext?: AdapterContext
+   /** Registered provider route selecting the adapter instance. */
+   provider: string
+   model: string
+@@ -756,6 +758,8 @@ interface LlmCallConfigAdapterDefaults {
+ ```ts type-equiv
+ /** One model call whose config and adapter registration were resolved together. */
+ interface PreparedLlmCall {
++  /** Context operations captured with this exact adapter generation. */
++  readonly nativeContext?: import('./types.ts').NativeContextCapability
+   /** Detached, deep-frozen config with any adapter-owned default materialized. */
+   readonly config: LlmCallConfig
+   /** Immutable retry policy captured with the adapter registration. */
+@@ -1094,3 +1098,45 @@ Waterfall around every streaming model call (retry, replay, routing). Bound to t
+ 
+ Source: [`packages/llm/llm/src/index.ts`](../../packages/llm/llm/src/index.ts)
+ <!-- END GENERATED cordis-surface -->
++
++```ts type-equiv
++/** Logged provider-native prefix; only the matching prepared adapter may interpret it. */
++interface AdapterContext {
++  /** Versioned wire representation owned by the adapter. */
++  format: string
++  /** Compatibility identity captured with endpoint and credentials. */
++  scope: string
++  /** Complete native prefix, including retained items; messages carry its following delta. */
++  input: JsonValue[]
++}
++```
++
++```ts type-equiv
++/** Native context operations bound to one prepared adapter generation. */
++interface NativeContextCapability {
++  /** Versioned native input representation. */
++  readonly format: string
++  /** Compatibility identity for stored prefixes. */
++  readonly scope: string
++  /**
++   * Convert a balanced history region without executing tools.
++   * @param messages - complete ordered messages with balanced tool interactions.
++   * @returns native items for this adapter generation.
++   */
++  encode(messages: Message[]): JsonValue[]
++  /**
++   * Count complete input, including current instructions and tools.
++   * @param options - current request controls, instructions, tools and cancellation.
++   * @param input - complete native prefix and following items.
++   * @returns effective input tokens, including opaque context.
++   */
++  count(options: GenerateOptions, input: JsonValue[]): Promise<number>
++  /**
++   * Return a complete compacted prefix; callers own budgeting and durable publication.
++   * @param options - current instructions and cancellation for the prepared route.
++   * @param input - bounded complete input window.
++   * @returns all returned items, including retained originals and opaque state.
++   */
++  compact(options: GenerateOptions, input: JsonValue[]): Promise<JsonValue[]>
++}
++```
+diff --git a/docs/subsystems/session.i18n.yaml b/docs/subsystems/session.i18n.yaml
+index c7296b9ca..40cdc4902 100644
+--- a/docs/subsystems/session.i18n.yaml
++++ b/docs/subsystems/session.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write docs/subsystems/session.md
+-session.md: 2b99ca8267d35978f245e6bdbf020226c976e363
+-session.zh.md: e6cff2d239caf7cd99be13463b412479a6f6e79b
++session.md: 9845b44c26e1539d90d475296a9e387f70af2c9c
++session.zh.md: aa99ed2acb45d9af20bfbfb3f51b6a2d4cdf8bb7
+diff --git a/docs/subsystems/session.md b/docs/subsystems/session.md
+index 2b99ca826..9845b44c2 100644
+--- a/docs/subsystems/session.md
++++ b/docs/subsystems/session.md
+@@ -25,6 +25,16 @@ interface UserMessage extends Message {
+  * compact raw streams so persistence stores one durable settlement per attempt.
+  */
+ interface SessionEventMap {
++  /** Complete candidate checkpoint; selectable only after its commit marker. */
++  'context/checkpoint': { key: string; state: JsonValue }
++  /** Publishes an earlier checkpoint whose candidate data passed a durability barrier. */
++  'context/checkpoint-commit': { checkpoint: SessionSeq }
++  /** Exact auxiliary compaction input admitted before dispatch. */
++  'context/operation': { kind: 'native-compact' | 'portable-summary'; request: JsonValue }
++  /** Successful auxiliary output correlated with its logged input. */
++  'context/operation-result': { operation: SessionSeq; output: JsonValue }
++  /** Selected request messages and native prefix; null restores ordinary surface derivation. */
++  'request/projection': { messages: Message[] | null; adapterContext?: AdapterContext }
+   /**
+    * Opens turn `turn` before the loop claims queued input or runs pre-step.
+    * Rejection, empty input, cancellation, or failure may close it with no
+@@ -400,190 +410,216 @@ declare class Session {
+   /** The ordered surface over this session's event log. */
+   get surface(): SessionSurface;
+   /**
+-   * Detached, deep-frozen creation metadata (format version, cwd, lineage,
+-   * and whether fork history exists). Supplied by the store via `ctx.sessions.create()`. When a
+-   * `Session` is created without a store-owned header, a minimal header is
+-   * synthesized (stamped with the current {@link SESSION_FORMAT_VERSION}) so
+-   * `session.header` is always present. Kept out of the event log — it is a
+-   * storage concern, not replayable conversation state.
+-   */
++     * Detached, deep-frozen creation metadata (format version, cwd, lineage,
++     * and whether fork history exists). Supplied by the store via `ctx.sessions.create()`. When a
++     * `Session` is created without a store-owned header, a minimal header is
++     * synthesized (stamped with the current {@link SESSION_FORMAT_VERSION}) so
++     * `session.header` is always present. Kept out of the event log — it is a
++     * storage concern, not replayable conversation state.
++     */
+   readonly header: SessionHeader;
+   /** Number of leading events inherited from this Session's fork parent. */
+   readonly inheritedEventCount: SessionLogOffset;
+   /** The session identity, derived from its durable header's single copy. */
+   get id(): SessionId;
+   /**
+-   * The first seq appended IN THIS PROCESS: the length of the constructor
+-   * seed (0 without one). Events with smaller seq values entered through
+-   * construction — replay, fork, or resume — and were never published on the
+-   * `session/event` firehose (constructor seeds do not emit). This offset marks
+-   * the constructor-input boundary for lifecycle ownership and persistence
+-   * adoption; consumers that need complete canonical history still start at
+-   * seq 0. Distinct from {@link inheritedEventCount}, the DURABLE
+-   * fork-lineage cut: a resumed session's constructor seed is its full stored
+-   * log, while the inherited count keeps the original fork value — this field is the
+-   * in-process construction fact.
+-   *
+-   * Not persisted itself: a seeded session projects it into the log as the
+-   * `session/end-seed` event, which is what a consumer reading STORED history
+-   * reads. Locate the LAST such event, not necessarily one at this seq — a
+-   * seed already ending in one is not re-marked, so reopening an untouched
+-   * session leaves that event at a smaller seq than `firstLiveSeq`. Prefer
+-   * this field in-process: it is exact before the marker reaches storage.
+-   *
+-   * When this lifecycle appends the marker, it occupies this seq before the
+-   * store attaches and therefore does not publish either. Otherwise this seq
+-   * holds an ordinary published write.
+-  */
++     * The first seq appended IN THIS PROCESS: the length of the constructor
++     * seed (0 without one). Events with smaller seq values entered through
++     * construction — replay, fork, or resume — and were never published on the
++     * `session/event` firehose (constructor seeds do not emit). This offset marks
++     * the constructor-input boundary for lifecycle ownership and persistence
++     * adoption; consumers that need complete canonical history still start at
++     * seq 0. Distinct from {@link inheritedEventCount}, the DURABLE
++     * fork-lineage cut: a resumed session's constructor seed is its full stored
++     * log, while the inherited count keeps the original fork value — this field is the
++     * in-process construction fact.
++     *
++     * Not persisted itself: a seeded session projects it into the log as the
++     * `session/end-seed` event, which is what a consumer reading STORED history
++     * reads. Locate the LAST such event, not necessarily one at this seq — a
++     * seed already ending in one is not re-marked, so reopening an untouched
++     * session leaves that event at a smaller seq than `firstLiveSeq`. Prefer
++     * this field in-process: it is exact before the marker reaches storage.
++     *
++     * When this lifecycle appends the marker, it occupies this seq before the
++     * store attaches and therefore does not publish either. Otherwise this seq
++     * holds an ordinary published write.
++     */
+   readonly firstLiveSeq: SessionLogOffset;
+   /**
+-   * Create a detached session by validating and snapshotting borrowed seed
+-   * events and storage metadata.
+-   * @param id - session identity.
+-   * @param seed - optional borrowed replay or fork events.
+-   * @param header - optional borrowed storage metadata.
+-   * @param inheritedEventCount - exact fork-inherited prefix length for a seeded header.
+-   * @returns a detached session.
+-   */
++     * Create a detached session by validating and snapshotting borrowed seed
++     * events and storage metadata.
++     * @param id - session identity.
++     * @param seed - optional borrowed replay or fork events.
++     * @param header - optional borrowed storage metadata.
++     * @param inheritedEventCount - exact fork-inherited prefix length for a seeded header.
++     * @returns a detached session.
++     */
+   static create(
+-    id: SessionId,
+-    seed?: readonly SessionEvent[],
+-    header?: SessionHeader,
+-    inheritedEventCount?: SessionLogOffset,
+-  ): Session;
++      id: SessionId,
++      seed?: readonly SessionEvent[],
++      header?: SessionHeader,
++      inheritedEventCount?: SessionLogOffset,
++    ): Session;
+   /**
+-   * Restore a detached session by adopting an independently owned or deeply frozen seed.
+-   * Runtime-required event fields, event envelopes, sequence continuity, surface
+-   * transitions, and header fields are validated without copying or freezing events.
+-   * Embedded Assistant streams remain opaque until a stream consumer or storage
+-   * verifier reads them.
+-   * @param id - restored session identity.
+-   * @param seed - independently owned or deeply frozen events.
+-   * @param header - independently owned storage metadata.
+-   * @param inheritedEventCount - exact fork-inherited prefix length decoded from storage.
+-   * @param eventState - aliasing state carried from the operation that produced the seed.
+-   * @returns a restored detached session.
+-   */
++     * Restore a detached session by adopting an independently owned or deeply frozen seed.
++     * Runtime-required event fields, event envelopes, sequence continuity, surface
++     * transitions, and header fields are validated without copying or freezing events.
++     * Embedded Assistant streams remain opaque until a stream consumer or storage
++     * verifier reads them.
++     * @param id - restored session identity.
++     * @param seed - independently owned or deeply frozen events.
++     * @param header - independently owned storage metadata.
++     * @param inheritedEventCount - exact fork-inherited prefix length decoded from storage.
++     * @param eventState - aliasing state carried from the operation that produced the seed.
++     * @returns a restored detached session.
++     */
+   static fromRestore(
+-    id: SessionId,
+-    seed: readonly SessionEvent[],
+-    header: SessionHeader,
+-    inheritedEventCount: SessionLogOffset,
+-    eventState: SessionSeedEventState,
+-  ): Session;
++      id: SessionId,
++      seed: readonly SessionEvent[],
++      header: SessionHeader,
++      inheritedEventCount: SessionLogOffset,
++      eventState: SessionSeedEventState,
++    ): Session;
+   /**
+-   * Return the immutable event stored at one exact sequence number.
+-   * @param seq - event sequence number.
+-   * @returns the accepted event, or undefined when the log does not contain it.
+-   */
++     * Return the immutable event stored at one exact sequence number.
++     * @param seq - event sequence number.
++     * @returns the accepted event, or undefined when the log does not contain it.
++     */
+   eventAt(seq: SessionSeq): SessionEvent | undefined;
+   /**
+-   * Materialize an immutable snapshot of a half-open event sequence range.
+-   * A full current snapshot is reused until the next append; every previously
+-   * returned snapshot remains stable after later appends.
+-   * @param fromSeq - non-negative inclusive sequence number; defaults to the log start.
+-   * @param toSeqExclusive - non-negative exclusive sequence number; defaults to the current end.
+-   * @returns a frozen array of the selected deeply frozen events.
+-   */
++     * Materialize an immutable snapshot of a half-open event sequence range.
++     * A full current snapshot is reused until the next append; every previously
++     * returned snapshot remains stable after later appends.
++     * @param fromSeq - non-negative inclusive sequence number; defaults to the log start.
++     * @param toSeqExclusive - non-negative exclusive sequence number; defaults to the current end.
++     * @returns a frozen array of the selected deeply frozen events.
++     */
+   snapshotEvents(
+-    fromSeq: SessionLogOffset = SessionLogOffset(0),
+-    toSeqExclusive: SessionLogOffset = this.seq,
+-  ): readonly SessionEvent[];
++      fromSeq: SessionLogOffset = SessionLogOffset(0),
++      toSeqExclusive: SessionLogOffset = this.seq,
++    ): readonly SessionEvent[];
+   /**
+-   * Return this Session's events after its fork-inherited prefix.
+-   * @returns a fresh array containing child-owned events in log order.
+-   */
++     * Return this Session's events after its fork-inherited prefix.
++     * @returns a fresh array containing child-owned events in log order.
++     */
+   ownEvents(): readonly SessionEvent[];
+   /**
+-   * Whether one existing event position is outside the fork-inherited prefix.
+-   * @param seq - event position in this Session.
+-   * @returns true when the event belongs to this Session rather than its parent.
+-   */
++     * Whether one existing event position is outside the fork-inherited prefix.
++     * @param seq - event position in this Session.
++     * @returns true when the event belongs to this Session rather than its parent.
++     */
+   isOwnSeq(seq: SessionSeq): boolean;
+   /** The next event's sequence number — always the log length (the `seq = log.length` contiguity contract). */
+   get seq(): SessionLogOffset;
+   /**
+-   * Append one typed event to the log and synchronously notify observers via
+-   * the store-owned, module-private publication hooks. The hot path never blocks
+-   * on I/O — persistence plugins buffer asynchronously. Once the event enters
+-   * the log, the append is committed: observer failures are logged and
+-   * contained per listener, so they do not change the return value or prevent
+-   * later listeners from observing the same accepted event.
+-   *
+-   * @param type - The event type (key of {@link SessionEventMap}).
+-   * @param data - The event payload; must be JSON-serializable.
+-   * @param opts - Surface metadata: `surfaceOp` controls how the event enters
+-   *   the ordered surface; `sourceEventSeqs` lists the seq numbers of earlier
+-   *   events this one derives from. REQUIRED for
+-   *   {@link SurfaceEventType} events (every message-producing event must
+-   *   declare how it joins the surface, the sole source of derived model
+-   *   history) and
+-   *   rejected by the compiler for non-surface types like `turn/start` or
+-   *   `assistant/attempt`. Assistant messages embed their exact provider
+-   *   stream and cannot cite top-level source events.
+-   * @returns the logged event — its assigned `seq`/`time` plus the SNAPSHOT of
+-   *   `data` that entered the log, so reading `event.data` back sees the logged
+-   *   value, never the caller's still-mutable input.
+-   * @throws if `data` or surface metadata is not losslessly JSON-serializable
+-   *   (BigInt, function, symbol, undefined, negative zero, non-finite number,
+-   *   circular reference, sparse array, or an exotic object such as
+-   *   Map/Set/Date/class instance), or when the candidate violates the
+-   *   request-header empty-field or tool-error consistency rules, or the
+-   *   canonical surface contract (marker shape and eligibility, unique
+-   *   earlier source-event references, positional replacement validity, and complete
+-   *   shadowed-node coverage). One iterative pass reads, validates, and
+-   *   copies each nested value once, so a stateful getter cannot supply one value
+-   *   to validation and another to storage. The event log is the durable source
+-   *   of truth, so a bad event fails at the append site rather than later during
+-   *   a backend flush. A synchronous internal dispatch validation failure or an
+-   *   append reentered while this acceptance/publication boundary is open also
+-   *   rejects before the log changes.
+-   */
++     * Append one typed event to the log and synchronously notify observers via
++     * the store-owned, module-private publication hooks. The hot path never blocks
++     * on I/O — persistence plugins buffer asynchronously. Once the event enters
++     * the log, the append is committed: observer failures are logged and
++     * contained per listener, so they do not change the return value or prevent
++     * later listeners from observing the same accepted event.
++     *
++     * @param type - The event type (key of {@link SessionEventMap}).
++     * @param data - The event payload; must be JSON-serializable.
++     * @param opts - Surface metadata: `surfaceOp` controls how the event enters
++     *   the ordered surface; `sourceEventSeqs` lists the seq numbers of earlier
++     *   events this one derives from. REQUIRED for
++     *   {@link SurfaceEventType} events (every message-producing event must
++     *   declare how it joins the surface, the sole source of derived model
++     *   history) and
++     *   rejected by the compiler for non-surface types like `turn/start` or
++     *   `assistant/attempt`. Assistant messages embed their exact provider
++     *   stream and cannot cite top-level source events.
++     * @returns the logged event — its assigned `seq`/`time` plus the SNAPSHOT of
++     *   `data` that entered the log, so reading `event.data` back sees the logged
++     *   value, never the caller's still-mutable input.
++     * @throws if `data` or surface metadata is not losslessly JSON-serializable
++     *   (BigInt, function, symbol, undefined, negative zero, non-finite number,
++     *   circular reference, sparse array, or an exotic object such as
++     *   Map/Set/Date/class instance), or when the candidate violates the
++     *   request-header empty-field or tool-error consistency rules, or the
++     *   canonical surface contract (marker shape and eligibility, unique
++     *   earlier source-event references, positional replacement validity, and complete
++     *   shadowed-node coverage). One iterative pass reads, validates, and
++     *   copies each nested value once, so a stateful getter cannot supply one value
++     *   to validation and another to storage. The event log is the durable source
++     *   of truth, so a bad event fails at the append site rather than later during
++     *   a backend flush. A synchronous internal dispatch validation failure or an
++     *   append reentered while this acceptance/publication boundary is open also
++     *   rejects before the log changes.
++     */
+   append<T extends SessionEventType>(
+-    type: T,
+-    data: SessionEventMap[T],
+-    ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent<T>] : []
+-  ): SessionEvent<T>;
++      type: T,
++      data: SessionEventMap[T],
++      ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent<T>] : []
++    ): SessionEvent<T>;
+   /**
+-   * The {@link EpochHeader} in force after the log's last header event — the
+-   * header the NEXT request will be compared against — or undefined before
+-   * the first `request/header` snapshot. The live, incrementally-maintained
+-   * form of `foldRequestHeader(session.snapshotEvents())`: each header event is folded
+-   * once, when first seen, so a per-step read costs O(new events).
+-   * @returns the folded header, or undefined when no header event exists yet.
+-   */
++     * Append an external informational record with `ignorable: true` persisted
++     * on its envelope. Readers retain the record without deriving model input.
++     * The producer must not use this method for permission, control, or facts
++     * required to reconstruct model history. Built-in event types are refused.
++     * Payload validation, publication, ownership, and reentrancy rules are the
++     * same as {@link append}; durability still requires the ordinary flush.
++     * @param type - A nonempty external SessionEventMap key.
++     * @param data - Lossless JSON information owned by the external producer.
++     * @returns the committed immutable informational event.
++     * @throws when the type is built-in or invalid, or append validation fails.
++     */
++  appendInformational<T extends Exclude<SessionEventType, SurfaceEventType>>(
++      type: T,
++      data: SessionEventMap[T],
++    ): SessionEvent<T>;
++  /**
++     * The {@link EpochHeader} in force after the log's last header event — the
++     * header the NEXT request will be compared against — or undefined before
++     * the first `request/header` snapshot. The live, incrementally-maintained
++     * form of `foldRequestHeader(session.snapshotEvents())`: each header event is folded
++     * once, when first seen, so a per-step read costs O(new events).
++     * @returns the folded header, or undefined when no header event exists yet.
++     */
+   requestHeader(): EpochHeader | undefined;
+   /**
+-   * Return the latest resolved route metadata, or `undefined` before the first
+-   * `request/context` event. Each event is folded once.
+-   * @returns the latest immutable route metadata.
+-   */
++     * Return the latest resolved route metadata, or `undefined` before the first
++     * `request/context` event. Each event is folded once.
++     * @returns the latest immutable route metadata.
++     */
+   requestContext(): RequestContext | undefined;
+   /**
+-   * Derive the LLM message history by walking the ordered sequences of
+-   * message-producing events maintained by `surfaceOp` markers. The
+-   * surface is the single source of derived history: every message-producing
+-   * append records its `surfaceOp`, so a raw event with no marker (a chunk, a
+-   * turn boundary) is correctly absent, and a compaction `replace` deletes the
+-   * shadowed nodes from the derivation. The projection rules are
+-   * {@link deriveEventMessage}, folded per node.
+-   *
+-   * CACHED: each surface node is projected exactly once, when first seen — a
+-   * call costs O(new nodes), and a surface rewrite (a `replace`;
+-   * {@link SessionSurface.replaceGeneration}) rebuilds. The returned array is
+-   * a fresh snapshot per call (later appends never grow an array a caller
+-   * already holds); the `Message` objects in it are SHARED and **deep-frozen**.
+-   * Their content reuses the already frozen durable event data, so the cache
+-   * needs no second deep clone and consumers still cannot mutate the log.
+-   * @returns a fresh array of the shared, frozen derived history.
+-   */
++     * Read the latest logged request selection without changing the original surface.
++     * @returns the selected messages/native prefix, or undefined before a selector has run.
++     */
++  requestProjection(): SessionEventMap['request/projection'] | undefined;
++  /**
++     * Reconstruct the latest dispatch-time message selection from its logged projection.
++     * @returns selected messages, or the ordinary surface after a logged reset.
++     */
++  deriveRequestMessages(): Message[];
++  /**
++     * Derive the LLM message history by walking the ordered sequences of
++     * message-producing events maintained by `surfaceOp` markers. The
++     * surface is the single source of derived history: every message-producing
++     * append records its `surfaceOp`, so a raw event with no marker (a chunk, a
++     * turn boundary) is correctly absent, and a compaction `replace` deletes the
++     * shadowed nodes from the derivation. The projection rules are
++     * {@link deriveEventMessage}, folded per node.
++     *
++     * CACHED: each surface node is projected exactly once, when first seen — a
++     * call costs O(new nodes), and a surface rewrite (a `replace`;
++     * {@link SessionSurface.replaceGeneration}) rebuilds. The returned array is
++     * a fresh snapshot per call (later appends never grow an array a caller
++     * already holds); the `Message` objects in it are SHARED and **deep-frozen**.
++     * Their content reuses the already frozen durable event data, so the cache
++     * needs no second deep clone and consumers still cannot mutate the log.
++     * @returns a fresh array of the shared, frozen derived history.
++     */
+   deriveMessages(): Message[];
+   /**
+-   * Instance face of the pure per-node `deriveEventMessage` export from
+-   * `surface.ts`.
+-   * @param event - the event to project.
+-   * @returns the derived message, or null when the event produces none.
+-   */
++     * Instance face of the pure per-node `deriveEventMessage` export from
++     * `surface.ts`.
++     * @param event - the event to project.
++     * @returns the derived message, or null when the event produces none.
++     */
+   deriveEventMessage(event: SessionEvent): Message | null;
+ }
+ ```
+diff --git a/docs/subsystems/session.zh.md b/docs/subsystems/session.zh.md
+index e6cff2d23..aa99ed2ac 100644
+--- a/docs/subsystems/session.zh.md
++++ b/docs/subsystems/session.zh.md
+@@ -25,6 +25,16 @@ interface UserMessage extends Message {
+  * compact raw streams so persistence stores one durable settlement per attempt.
+  */
+ interface SessionEventMap {
++  /** Complete candidate checkpoint; selectable only after its commit marker. */
++  'context/checkpoint': { key: string; state: JsonValue }
++  /** Publishes an earlier checkpoint whose candidate data passed a durability barrier. */
++  'context/checkpoint-commit': { checkpoint: SessionSeq }
++  /** Exact auxiliary compaction input admitted before dispatch. */
++  'context/operation': { kind: 'native-compact' | 'portable-summary'; request: JsonValue }
++  /** Successful auxiliary output correlated with its logged input. */
++  'context/operation-result': { operation: SessionSeq; output: JsonValue }
++  /** Selected request messages and native prefix; null restores ordinary surface derivation. */
++  'request/projection': { messages: Message[] | null; adapterContext?: AdapterContext }
+   /**
+    * Opens turn `turn` before the loop claims queued input or runs pre-step.
+    * Rejection, empty input, cancellation, or failure may close it with no
+@@ -402,190 +412,216 @@ declare class Session {
+   /** The ordered surface over this session's event log. */
+   get surface(): SessionSurface;
+   /**
+-   * Detached, deep-frozen creation metadata (format version, cwd, lineage,
+-   * and whether fork history exists). Supplied by the store via `ctx.sessions.create()`. When a
+-   * `Session` is created without a store-owned header, a minimal header is
+-   * synthesized (stamped with the current {@link SESSION_FORMAT_VERSION}) so
+-   * `session.header` is always present. Kept out of the event log — it is a
+-   * storage concern, not replayable conversation state.
+-   */
++     * Detached, deep-frozen creation metadata (format version, cwd, lineage,
++     * and whether fork history exists). Supplied by the store via `ctx.sessions.create()`. When a
++     * `Session` is created without a store-owned header, a minimal header is
++     * synthesized (stamped with the current {@link SESSION_FORMAT_VERSION}) so
++     * `session.header` is always present. Kept out of the event log — it is a
++     * storage concern, not replayable conversation state.
++     */
+   readonly header: SessionHeader;
+   /** Number of leading events inherited from this Session's fork parent. */
+   readonly inheritedEventCount: SessionLogOffset;
+   /** The session identity, derived from its durable header's single copy. */
+   get id(): SessionId;
+   /**
+-   * The first seq appended IN THIS PROCESS: the length of the constructor
+-   * seed (0 without one). Events with smaller seq values entered through
+-   * construction — replay, fork, or resume — and were never published on the
+-   * `session/event` firehose (constructor seeds do not emit). This offset marks
+-   * the constructor-input boundary for lifecycle ownership and persistence
+-   * adoption; consumers that need complete canonical history still start at
+-   * seq 0. Distinct from {@link inheritedEventCount}, the DURABLE
+-   * fork-lineage cut: a resumed session's constructor seed is its full stored
+-   * log, while the inherited count keeps the original fork value — this field is the
+-   * in-process construction fact.
+-   *
+-   * Not persisted itself: a seeded session projects it into the log as the
+-   * `session/end-seed` event, which is what a consumer reading STORED history
+-   * reads. Locate the LAST such event, not necessarily one at this seq — a
+-   * seed already ending in one is not re-marked, so reopening an untouched
+-   * session leaves that event at a smaller seq than `firstLiveSeq`. Prefer
+-   * this field in-process: it is exact before the marker reaches storage.
+-   *
+-   * When this lifecycle appends the marker, it occupies this seq before the
+-   * store attaches and therefore does not publish either. Otherwise this seq
+-   * holds an ordinary published write.
+-  */
++     * The first seq appended IN THIS PROCESS: the length of the constructor
++     * seed (0 without one). Events with smaller seq values entered through
++     * construction — replay, fork, or resume — and were never published on the
++     * `session/event` firehose (constructor seeds do not emit). This offset marks
++     * the constructor-input boundary for lifecycle ownership and persistence
++     * adoption; consumers that need complete canonical history still start at
++     * seq 0. Distinct from {@link inheritedEventCount}, the DURABLE
++     * fork-lineage cut: a resumed session's constructor seed is its full stored
++     * log, while the inherited count keeps the original fork value — this field is the
++     * in-process construction fact.
++     *
++     * Not persisted itself: a seeded session projects it into the log as the
++     * `session/end-seed` event, which is what a consumer reading STORED history
++     * reads. Locate the LAST such event, not necessarily one at this seq — a
++     * seed already ending in one is not re-marked, so reopening an untouched
++     * session leaves that event at a smaller seq than `firstLiveSeq`. Prefer
++     * this field in-process: it is exact before the marker reaches storage.
++     *
++     * When this lifecycle appends the marker, it occupies this seq before the
++     * store attaches and therefore does not publish either. Otherwise this seq
++     * holds an ordinary published write.
++     */
+   readonly firstLiveSeq: SessionLogOffset;
+   /**
+-   * Create a detached session by validating and snapshotting borrowed seed
+-   * events and storage metadata.
+-   * @param id - session identity.
+-   * @param seed - optional borrowed replay or fork events.
+-   * @param header - optional borrowed storage metadata.
+-   * @param inheritedEventCount - exact fork-inherited prefix length for a seeded header.
+-   * @returns a detached session.
+-   */
++     * Create a detached session by validating and snapshotting borrowed seed
++     * events and storage metadata.
++     * @param id - session identity.
++     * @param seed - optional borrowed replay or fork events.
++     * @param header - optional borrowed storage metadata.
++     * @param inheritedEventCount - exact fork-inherited prefix length for a seeded header.
++     * @returns a detached session.
++     */
+   static create(
+-    id: SessionId,
+-    seed?: readonly SessionEvent[],
+-    header?: SessionHeader,
+-    inheritedEventCount?: SessionLogOffset,
+-  ): Session;
++      id: SessionId,
++      seed?: readonly SessionEvent[],
++      header?: SessionHeader,
++      inheritedEventCount?: SessionLogOffset,
++    ): Session;
+   /**
+-   * Restore a detached session by adopting an independently owned or deeply frozen seed.
+-   * Runtime-required event fields, event envelopes, sequence continuity, surface
+-   * transitions, and header fields are validated without copying or freezing events.
+-   * Embedded Assistant streams remain opaque until a stream consumer or storage
+-   * verifier reads them.
+-   * @param id - restored session identity.
+-   * @param seed - independently owned or deeply frozen events.
+-   * @param header - independently owned storage metadata.
+-   * @param inheritedEventCount - exact fork-inherited prefix length decoded from storage.
+-   * @param eventState - aliasing state carried from the operation that produced the seed.
+-   * @returns a restored detached session.
+-   */
++     * Restore a detached session by adopting an independently owned or deeply frozen seed.
++     * Runtime-required event fields, event envelopes, sequence continuity, surface
++     * transitions, and header fields are validated without copying or freezing events.
++     * Embedded Assistant streams remain opaque until a stream consumer or storage
++     * verifier reads them.
++     * @param id - restored session identity.
++     * @param seed - independently owned or deeply frozen events.
++     * @param header - independently owned storage metadata.
++     * @param inheritedEventCount - exact fork-inherited prefix length decoded from storage.
++     * @param eventState - aliasing state carried from the operation that produced the seed.
++     * @returns a restored detached session.
++     */
+   static fromRestore(
+-    id: SessionId,
+-    seed: readonly SessionEvent[],
+-    header: SessionHeader,
+-    inheritedEventCount: SessionLogOffset,
+-    eventState: SessionSeedEventState,
+-  ): Session;
++      id: SessionId,
++      seed: readonly SessionEvent[],
++      header: SessionHeader,
++      inheritedEventCount: SessionLogOffset,
++      eventState: SessionSeedEventState,
++    ): Session;
+   /**
+-   * Return the immutable event stored at one exact sequence number.
+-   * @param seq - event sequence number.
+-   * @returns the accepted event, or undefined when the log does not contain it.
+-   */
++     * Return the immutable event stored at one exact sequence number.
++     * @param seq - event sequence number.
++     * @returns the accepted event, or undefined when the log does not contain it.
++     */
+   eventAt(seq: SessionSeq): SessionEvent | undefined;
+   /**
+-   * Materialize an immutable snapshot of a half-open event sequence range.
+-   * A full current snapshot is reused until the next append; every previously
+-   * returned snapshot remains stable after later appends.
+-   * @param fromSeq - non-negative inclusive sequence number; defaults to the log start.
+-   * @param toSeqExclusive - non-negative exclusive sequence number; defaults to the current end.
+-   * @returns a frozen array of the selected deeply frozen events.
+-   */
++     * Materialize an immutable snapshot of a half-open event sequence range.
++     * A full current snapshot is reused until the next append; every previously
++     * returned snapshot remains stable after later appends.
++     * @param fromSeq - non-negative inclusive sequence number; defaults to the log start.
++     * @param toSeqExclusive - non-negative exclusive sequence number; defaults to the current end.
++     * @returns a frozen array of the selected deeply frozen events.
++     */
+   snapshotEvents(
+-    fromSeq: SessionLogOffset = SessionLogOffset(0),
+-    toSeqExclusive: SessionLogOffset = this.seq,
+-  ): readonly SessionEvent[];
++      fromSeq: SessionLogOffset = SessionLogOffset(0),
++      toSeqExclusive: SessionLogOffset = this.seq,
++    ): readonly SessionEvent[];
+   /**
+-   * Return this Session's events after its fork-inherited prefix.
+-   * @returns a fresh array containing child-owned events in log order.
+-   */
++     * Return this Session's events after its fork-inherited prefix.
++     * @returns a fresh array containing child-owned events in log order.
++     */
+   ownEvents(): readonly SessionEvent[];
+   /**
+-   * Whether one existing event position is outside the fork-inherited prefix.
+-   * @param seq - event position in this Session.
+-   * @returns true when the event belongs to this Session rather than its parent.
+-   */
++     * Whether one existing event position is outside the fork-inherited prefix.
++     * @param seq - event position in this Session.
++     * @returns true when the event belongs to this Session rather than its parent.
++     */
+   isOwnSeq(seq: SessionSeq): boolean;
+   /** The next event's sequence number — always the log length (the `seq = log.length` contiguity contract). */
+   get seq(): SessionLogOffset;
+   /**
+-   * Append one typed event to the log and synchronously notify observers via
+-   * the store-owned, module-private publication hooks. The hot path never blocks
+-   * on I/O — persistence plugins buffer asynchronously. Once the event enters
+-   * the log, the append is committed: observer failures are logged and
+-   * contained per listener, so they do not change the return value or prevent
+-   * later listeners from observing the same accepted event.
+-   *
+-   * @param type - The event type (key of {@link SessionEventMap}).
+-   * @param data - The event payload; must be JSON-serializable.
+-   * @param opts - Surface metadata: `surfaceOp` controls how the event enters
+-   *   the ordered surface; `sourceEventSeqs` lists the seq numbers of earlier
+-   *   events this one derives from. REQUIRED for
+-   *   {@link SurfaceEventType} events (every message-producing event must
+-   *   declare how it joins the surface, the sole source of derived model
+-   *   history) and
+-   *   rejected by the compiler for non-surface types like `turn/start` or
+-   *   `assistant/attempt`. Assistant messages embed their exact provider
+-   *   stream and cannot cite top-level source events.
+-   * @returns the logged event — its assigned `seq`/`time` plus the SNAPSHOT of
+-   *   `data` that entered the log, so reading `event.data` back sees the logged
+-   *   value, never the caller's still-mutable input.
+-   * @throws if `data` or surface metadata is not losslessly JSON-serializable
+-   *   (BigInt, function, symbol, undefined, negative zero, non-finite number,
+-   *   circular reference, sparse array, or an exotic object such as
+-   *   Map/Set/Date/class instance), or when the candidate violates the
+-   *   request-header empty-field or tool-error consistency rules, or the
+-   *   canonical surface contract (marker shape and eligibility, unique
+-   *   earlier source-event references, positional replacement validity, and complete
+-   *   shadowed-node coverage). One iterative pass reads, validates, and
+-   *   copies each nested value once, so a stateful getter cannot supply one value
+-   *   to validation and another to storage. The event log is the durable source
+-   *   of truth, so a bad event fails at the append site rather than later during
+-   *   a backend flush. A synchronous internal dispatch validation failure or an
+-   *   append reentered while this acceptance/publication boundary is open also
+-   *   rejects before the log changes.
+-   */
++     * Append one typed event to the log and synchronously notify observers via
++     * the store-owned, module-private publication hooks. The hot path never blocks
++     * on I/O — persistence plugins buffer asynchronously. Once the event enters
++     * the log, the append is committed: observer failures are logged and
++     * contained per listener, so they do not change the return value or prevent
++     * later listeners from observing the same accepted event.
++     *
++     * @param type - The event type (key of {@link SessionEventMap}).
++     * @param data - The event payload; must be JSON-serializable.
++     * @param opts - Surface metadata: `surfaceOp` controls how the event enters
++     *   the ordered surface; `sourceEventSeqs` lists the seq numbers of earlier
++     *   events this one derives from. REQUIRED for
++     *   {@link SurfaceEventType} events (every message-producing event must
++     *   declare how it joins the surface, the sole source of derived model
++     *   history) and
++     *   rejected by the compiler for non-surface types like `turn/start` or
++     *   `assistant/attempt`. Assistant messages embed their exact provider
++     *   stream and cannot cite top-level source events.
++     * @returns the logged event — its assigned `seq`/`time` plus the SNAPSHOT of
++     *   `data` that entered the log, so reading `event.data` back sees the logged
++     *   value, never the caller's still-mutable input.
++     * @throws if `data` or surface metadata is not losslessly JSON-serializable
++     *   (BigInt, function, symbol, undefined, negative zero, non-finite number,
++     *   circular reference, sparse array, or an exotic object such as
++     *   Map/Set/Date/class instance), or when the candidate violates the
++     *   request-header empty-field or tool-error consistency rules, or the
++     *   canonical surface contract (marker shape and eligibility, unique
++     *   earlier source-event references, positional replacement validity, and complete
++     *   shadowed-node coverage). One iterative pass reads, validates, and
++     *   copies each nested value once, so a stateful getter cannot supply one value
++     *   to validation and another to storage. The event log is the durable source
++     *   of truth, so a bad event fails at the append site rather than later during
++     *   a backend flush. A synchronous internal dispatch validation failure or an
++     *   append reentered while this acceptance/publication boundary is open also
++     *   rejects before the log changes.
++     */
+   append<T extends SessionEventType>(
+-    type: T,
+-    data: SessionEventMap[T],
+-    ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent<T>] : []
+-  ): SessionEvent<T>;
++      type: T,
++      data: SessionEventMap[T],
++      ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent<T>] : []
++    ): SessionEvent<T>;
+   /**
+-   * The {@link EpochHeader} in force after the log's last header event — the
+-   * header the NEXT request will be compared against — or undefined before
+-   * the first `request/header` snapshot. The live, incrementally-maintained
+-   * form of `foldRequestHeader(session.snapshotEvents())`: each header event is folded
+-   * once, when first seen, so a per-step read costs O(new events).
+-   * @returns the folded header, or undefined when no header event exists yet.
+-   */
++     * Append an external informational record with `ignorable: true` persisted
++     * on its envelope. Readers retain the record without deriving model input.
++     * The producer must not use this method for permission, control, or facts
++     * required to reconstruct model history. Built-in event types are refused.
++     * Payload validation, publication, ownership, and reentrancy rules are the
++     * same as {@link append}; durability still requires the ordinary flush.
++     * @param type - A nonempty external SessionEventMap key.
++     * @param data - Lossless JSON information owned by the external producer.
++     * @returns the committed immutable informational event.
++     * @throws when the type is built-in or invalid, or append validation fails.
++     */
++  appendInformational<T extends Exclude<SessionEventType, SurfaceEventType>>(
++      type: T,
++      data: SessionEventMap[T],
++    ): SessionEvent<T>;
++  /**
++     * The {@link EpochHeader} in force after the log's last header event — the
++     * header the NEXT request will be compared against — or undefined before
++     * the first `request/header` snapshot. The live, incrementally-maintained
++     * form of `foldRequestHeader(session.snapshotEvents())`: each header event is folded
++     * once, when first seen, so a per-step read costs O(new events).
++     * @returns the folded header, or undefined when no header event exists yet.
++     */
+   requestHeader(): EpochHeader | undefined;
+   /**
+-   * Return the latest resolved route metadata, or `undefined` before the first
+-   * `request/context` event. Each event is folded once.
+-   * @returns the latest immutable route metadata.
+-   */
++     * Return the latest resolved route metadata, or `undefined` before the first
++     * `request/context` event. Each event is folded once.
++     * @returns the latest immutable route metadata.
++     */
+   requestContext(): RequestContext | undefined;
+   /**
+-   * Derive the LLM message history by walking the ordered sequences of
+-   * message-producing events maintained by `surfaceOp` markers. The
+-   * surface is the single source of derived history: every message-producing
+-   * append records its `surfaceOp`, so a raw event with no marker (a chunk, a
+-   * turn boundary) is correctly absent, and a compaction `replace` deletes the
+-   * shadowed nodes from the derivation. The projection rules are
+-   * {@link deriveEventMessage}, folded per node.
+-   *
+-   * CACHED: each surface node is projected exactly once, when first seen — a
+-   * call costs O(new nodes), and a surface rewrite (a `replace`;
+-   * {@link SessionSurface.replaceGeneration}) rebuilds. The returned array is
+-   * a fresh snapshot per call (later appends never grow an array a caller
+-   * already holds); the `Message` objects in it are SHARED and **deep-frozen**.
+-   * Their content reuses the already frozen durable event data, so the cache
+-   * needs no second deep clone and consumers still cannot mutate the log.
+-   * @returns a fresh array of the shared, frozen derived history.
+-   */
++     * Read the latest logged request selection without changing the original surface.
++     * @returns the selected messages/native prefix, or undefined before a selector has run.
++     */
++  requestProjection(): SessionEventMap['request/projection'] | undefined;
++  /**
++     * Reconstruct the latest dispatch-time message selection from its logged projection.
++     * @returns selected messages, or the ordinary surface after a logged reset.
++     */
++  deriveRequestMessages(): Message[];
++  /**
++     * Derive the LLM message history by walking the ordered sequences of
++     * message-producing events maintained by `surfaceOp` markers. The
++     * surface is the single source of derived history: every message-producing
++     * append records its `surfaceOp`, so a raw event with no marker (a chunk, a
++     * turn boundary) is correctly absent, and a compaction `replace` deletes the
++     * shadowed nodes from the derivation. The projection rules are
++     * {@link deriveEventMessage}, folded per node.
++     *
++     * CACHED: each surface node is projected exactly once, when first seen — a
++     * call costs O(new nodes), and a surface rewrite (a `replace`;
++     * {@link SessionSurface.replaceGeneration}) rebuilds. The returned array is
++     * a fresh snapshot per call (later appends never grow an array a caller
++     * already holds); the `Message` objects in it are SHARED and **deep-frozen**.
++     * Their content reuses the already frozen durable event data, so the cache
++     * needs no second deep clone and consumers still cannot mutate the log.
++     * @returns a fresh array of the shared, frozen derived history.
++     */
+   deriveMessages(): Message[];
+   /**
+-   * Instance face of the pure per-node `deriveEventMessage` export from
+-   * `surface.ts`.
+-   * @param event - the event to project.
+-   * @returns the derived message, or null when the event produces none.
+-   */
++     * Instance face of the pure per-node `deriveEventMessage` export from
++     * `surface.ts`.
++     * @param event - the event to project.
++     * @returns the derived message, or null when the event produces none.
++     */
+   deriveEventMessage(event: SessionEvent): Message | null;
+ }
+ ```
+diff --git a/docs/subsystems/shell.i18n.yaml b/docs/subsystems/shell.i18n.yaml
+index 3253bbdd1..b5a9953bb 100644
+--- a/docs/subsystems/shell.i18n.yaml
++++ b/docs/subsystems/shell.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write docs/subsystems/shell.md
+-shell.md: 298544569906ddf62ad0703e25beab19204855d7
+-shell.zh.md: d4f25e333d57142115af67cdee4f4eb4c7c460ab
++shell.md: e93b8a77eeece79603e77cd97b16cfac83a64ea5
++shell.zh.md: 123db9e2054ff8d5812ce25886bb9fb2c4179d47
+diff --git a/docs/subsystems/shell.md b/docs/subsystems/shell.md
+index 298544569..e93b8a77e 100644
+--- a/docs/subsystems/shell.md
++++ b/docs/subsystems/shell.md
+@@ -44,6 +44,8 @@ interface ShellExecRequest {
+    * (a model that needs stdin uses shell syntax like a heredoc or a pipe).
+    */
+   stdin?: string | undefined
++  /** Keep stdin open for incremental writes; mutually exclusive with stdin data. */
++  interactive?: boolean | undefined
+   /**
+    * Ordinary environment entries for the command, merged after the credential
+    * scrub. Managed facts belong in {@link dshEnv}, which merges after this
+@@ -84,6 +86,8 @@ interface ShellExecSpec {
+   signal?: AbortSignal | undefined
+   /** Bytes to write to stdin before closing it; absent means no stdin. */
+   stdin?: string | undefined
++  /** Keep stdin open for incremental writes; mutually exclusive with stdin data. */
++  interactive?: boolean | undefined
+   /**
+    * Ordinary environment entries carried through from
+    * {@link ShellExecRequest.env}; {@link dshEnv} still merges after them.
+@@ -176,6 +180,10 @@ The `SANDBOX_UNAVAILABLE` error code (owned by the [sandbox seam](sandbox.md)) i
+  * awaits {@link done}; an executor-only reload leaves them running.
+  */
+ interface ShellProcess {
++  /** Terminate the entire managed range, including descendants after the command exits. */
++  terminate?(): void
++  /** Wait for the backend's managed process range to exit after cancellation. */
++  waitForExit?(signal?: AbortSignal): Promise<boolean>
+   /** Process lifecycle state (settled exactly once). */
+   status: ShellProcessStatus
+   /** Exit code once finished (null = killed by signal / still running). */
+@@ -200,6 +208,10 @@ interface ShellProcess {
+    * (no-op); idempotent.
+    */
+   kill(): boolean
++  /** Write UTF-8 to a pipe opened with interactive=true; rejects unsupported or closed input. */
++  writeStdin?(text: string): Promise<void>
++  /** Close the interactive input pipe without terminating the process. */
++  closeStdin?(): void
+ }
+ ```
+ 
+diff --git a/docs/subsystems/shell.zh.md b/docs/subsystems/shell.zh.md
+index d4f25e333..123db9e20 100644
+--- a/docs/subsystems/shell.zh.md
++++ b/docs/subsystems/shell.zh.md
+@@ -44,6 +44,8 @@ interface ShellExecRequest {
+    * (a model that needs stdin uses shell syntax like a heredoc or a pipe).
+    */
+   stdin?: string | undefined
++  /** Keep stdin open for incremental writes; mutually exclusive with stdin data. */
++  interactive?: boolean | undefined
+   /**
+    * Ordinary environment entries for the command, merged after the credential
+    * scrub. Managed facts belong in {@link dshEnv}, which merges after this
+@@ -84,6 +86,8 @@ interface ShellExecSpec {
+   signal?: AbortSignal | undefined
+   /** Bytes to write to stdin before closing it; absent means no stdin. */
+   stdin?: string | undefined
++  /** Keep stdin open for incremental writes; mutually exclusive with stdin data. */
++  interactive?: boolean | undefined
+   /**
+    * Ordinary environment entries carried through from
+    * {@link ShellExecRequest.env}; {@link dshEnv} still merges after them.
+@@ -176,6 +180,10 @@ interface ShellSandboxInfo {
+  * awaits {@link done}; an executor-only reload leaves them running.
+  */
+ interface ShellProcess {
++  /** Terminate the entire managed range, including descendants after the command exits. */
++  terminate?(): void
++  /** Wait for the backend's managed process range to exit after cancellation. */
++  waitForExit?(signal?: AbortSignal): Promise<boolean>
+   /** Process lifecycle state (settled exactly once). */
+   status: ShellProcessStatus
+   /** Exit code once finished (null = killed by signal / still running). */
+@@ -200,6 +208,10 @@ interface ShellProcess {
+    * (no-op); idempotent.
+    */
+   kill(): boolean
++  /** Write UTF-8 to a pipe opened with interactive=true; rejects unsupported or closed input. */
++  writeStdin?(text: string): Promise<void>
++  /** Close the interactive input pipe without terminating the process. */
++  closeStdin?(): void
+ }
+ ```
+ 
+diff --git a/docs/subsystems/system-prompt.i18n.yaml b/docs/subsystems/system-prompt.i18n.yaml
+index 96577399b..ad5c3386d 100644
+--- a/docs/subsystems/system-prompt.i18n.yaml
++++ b/docs/subsystems/system-prompt.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write docs/subsystems/system-prompt.md
+-system-prompt.md: 516e3347c06882bfd3ff42638d77a2acb3aca753
+-system-prompt.zh.md: 611ea0e9bdd81585efd7106012edd3d17e7bdd8e
++system-prompt.md: 9b2db6ee75efcf82032ae5c6b1a9c84cab25ea57
++system-prompt.zh.md: a78d1fc8fcb15ce456dedc9d1b18349376fd18ad
+diff --git a/docs/subsystems/system-prompt.md b/docs/subsystems/system-prompt.md
+index 516e3347c..9b2db6ee7 100644
+--- a/docs/subsystems/system-prompt.md
++++ b/docs/subsystems/system-prompt.md
+@@ -13,6 +13,10 @@ Source: [`packages/core/system-prompt/src/index.ts`](../../packages/core/system-
+ ```ts type-equiv
+ /** Merge-extensible context for one prompt assembly. */
+ interface AssembleContext {
++  /** Preview assemblies must not advance per-step routing or execution state. */
++  preview?: boolean
++  /** Requested route captured before dynamic registration and prompt evaluation. */
++  route?: Readonly<{ provider?: string; model?: string }>
+   /**
+    * Scope whose providers and waterfall listeners participate. When absent,
+    * only global providers and subject-less listeners participate.
+diff --git a/docs/subsystems/system-prompt.zh.md b/docs/subsystems/system-prompt.zh.md
+index 611ea0e9b..a78d1fc8f 100644
+--- a/docs/subsystems/system-prompt.zh.md
++++ b/docs/subsystems/system-prompt.zh.md
+@@ -13,6 +13,10 @@
+ ```ts type-equiv
+ /** Merge-extensible context for one prompt assembly. */
+ interface AssembleContext {
++  /** Preview assemblies must not advance per-step routing or execution state. */
++  preview?: boolean
++  /** Requested route captured before dynamic registration and prompt evaluation. */
++  route?: Readonly<{ provider?: string; model?: string }>
+   /**
+    * Scope whose providers and waterfall listeners participate. When absent,
+    * only global providers and subject-less listeners participate.
+diff --git a/packages/compaction/compaction-basic/README.i18n.yaml b/packages/compaction/compaction-basic/README.i18n.yaml
+index 628c41342..a5253761e 100644
+--- a/packages/compaction/compaction-basic/README.i18n.yaml
++++ b/packages/compaction/compaction-basic/README.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write packages/compaction/compaction-basic/README.md
+-README.md: f4045f99f55ba77a1f3741717141baa52d94d742
+-README.zh.md: f8d7f62165ab63215f225550dbc5916bfe7942d6
++README.md: c023f4c32ef400d56b48fa0a8ec3ab6ae6a306c8
++README.zh.md: c25535c14e7d3482bb0ca3706cc6dd42cc728a3a
+diff --git a/packages/compaction/compaction-basic/README.md b/packages/compaction/compaction-basic/README.md
+index f4045f99f..c023f4c32 100644
+--- a/packages/compaction/compaction-basic/README.md
++++ b/packages/compaction/compaction-basic/README.md
+@@ -256,3 +256,5 @@ This Dev Note is working context for maintainers and is explicitly non-authorita
+ - **Overflow recovery beyond canonical errors, undecided** — recovery triggers on `CONTEXT_WINDOW_EXCEEDED` only; other provider-side context failures are not classified.
+ 
+ </details>
++
++Automatic compaction returns without rewriting the surface while an agent has a registered context provider. Disposing the provider restores automatic compaction. Explicit manual compaction retains its existing behavior.
+diff --git a/packages/compaction/compaction-basic/README.zh.md b/packages/compaction/compaction-basic/README.zh.md
+index f8d7f6216..c25535c14 100644
+--- a/packages/compaction/compaction-basic/README.zh.md
++++ b/packages/compaction/compaction-basic/README.zh.md
+@@ -256,3 +256,5 @@ Rules:
+ - **规范错误之外的溢出恢复，尚未决定**——恢复仅针对 `CONTEXT_WINDOW_EXCEEDED` 触发；其他提供方侧上下文失败不参与分类。
+ 
+ </details>
++
++agent 存在已注册的上下文提供者时，自动压缩直接返回，不改写 surface。释放提供者后恢复自动压缩。显式手动压缩保持既有行为。
+diff --git a/packages/compaction/compaction-basic/src/index.ts b/packages/compaction/compaction-basic/src/index.ts
+index 7a6ce3dab..b3d39700d 100644
+--- a/packages/compaction/compaction-basic/src/index.ts
++++ b/packages/compaction/compaction-basic/src/index.ts
+@@ -261,6 +261,7 @@ export class BasicCompactionEngine extends CompactionEngine {
+     trigger: CompactionTrigger,
+     signal: AbortSignal,
+   ): Promise<CompactionResult | null> {
++    if (this.ctx.get('agents')?.contextProvider(agent)) return null
+     const target = routedTarget(agent.session)
+     if (target === undefined) return null
+     const policy = resolveTargetPolicy(this.config, target)
+diff --git a/packages/core/agent-loop/README.i18n.yaml b/packages/core/agent-loop/README.i18n.yaml
+index e724b8ae1..6923e7ee5 100644
+--- a/packages/core/agent-loop/README.i18n.yaml
++++ b/packages/core/agent-loop/README.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write packages/core/agent-loop/README.md
+-README.md: 31316e4b9259362951824fc13375a820035ba849
+-README.zh.md: 06ad80f32fd20d76aa367b8203700235e39072fb
++README.md: debe953272d878788086317795ed91475563bec0
++README.zh.md: 12afda0106bb62511799f9d9df98e2e0123cd4c9
+diff --git a/packages/core/agent-loop/README.md b/packages/core/agent-loop/README.md
+index 31316e4b9..debe95327 100644
+--- a/packages/core/agent-loop/README.md
++++ b/packages/core/agent-loop/README.md
+@@ -208,3 +208,5 @@ These limits define when the loop needs special care. They are current package c
+ None.
+ 
+ </details>
++
++After admission the loop awaits the registered context provider, logs its request projection, and requires successful session persistence before dispatch. It rechecks cancellation, ownership and source history across selection and persistence. Without an owner it logs a reset of any previous projection and derives the ordinary surface.
+diff --git a/packages/core/agent-loop/README.zh.md b/packages/core/agent-loop/README.zh.md
+index 06ad80f32..12afda010 100644
+--- a/packages/core/agent-loop/README.zh.md
++++ b/packages/core/agent-loop/README.zh.md
+@@ -208,3 +208,5 @@ const handle = await ctx.agents.create({
+ 无。
+ 
+ </details>
++
++接纳输入后，循环等待已注册的上下文提供者，记录请求投影，并要求会话持久化成功后才发送。选择与持久化前后都检查取消、所有权及源历史是否变化。没有所有者时，循环记录旧投影的重置，再派生普通 surface。
+diff --git a/packages/core/agent-loop/src/agent.ts b/packages/core/agent-loop/src/agent.ts
+index 06e1f51b5..092cfec16 100644
+--- a/packages/core/agent-loop/src/agent.ts
++++ b/packages/core/agent-loop/src/agent.ts
+@@ -376,7 +376,7 @@ export class ReactLoopAgent implements Agent {
+         }
+       }
+       firstAttempt = false
+-      const request = this.buildRequest(config, preparedCall, assembly.tools, startsRequestSeries, signal)
++      const request = await this.buildRequest(config, preparedCall, assembly.tools, startsRequestSeries, signal)
+       const live = new AssistantStreamAttempt(
+         this.session.id,
+         ++this.assistantAttemptCounter,
+@@ -550,13 +550,13 @@ export class ReactLoopAgent implements Agent {
+   }
+ 
+   /** Log the resolved envelope and derive a frozen request from the admitted surface. */
+-  private buildRequest(
++  private async buildRequest(
+     config: LlmCallConfig,
+     preparedCall: PreparedLlmCall | undefined,
+     tools: GenerateOptions['tools'] & object,
+     startsRequestSeries: boolean,
+     signal: AbortSignal,
+-  ): GenerateOptions {
++  ): Promise<GenerateOptions> {
+     const { session } = this
+     const surfaceGeneration = session.surface.replaceGeneration
+     const header = canonicalHeader({
+@@ -600,7 +600,29 @@ export class ReactLoopAgent implements Agent {
+ 
+     // canonicalHeader is shallow; append logs a detached snapshot, not these local values.
+     deepFreeze(header)
+-    const boundaryMessages = session.deriveMessages()
++    const provider = this.loopCtx.agents.contextProvider(this)
++    if (provider) {
++      const original = session.deriveMessages()
++      const originalSignature = JSON.stringify(original)
++      const draft: GenerateOptions = { ...header.config, messages: original, tools, sessionId: session.id, signal }
++      const selection = await provider(draft, preparedCall)
++      signal.throwIfAborted()
++      if (this.loopCtx.agents.contextProvider(this) !== provider
++        || originalSignature !== JSON.stringify(session.deriveMessages())) {
++        throw new Error('Context ownership or source history changed during selection')
++      }
++      session.append('request/projection', selection)
++      if (!await this.loopCtx.sessions.flush(session)) throw new Error('Context selection requires a persistence listener')
++      signal.throwIfAborted()
++      if (this.loopCtx.agents.contextProvider(this) !== provider
++        || originalSignature !== JSON.stringify(session.deriveMessages())) {
++        throw new Error('Context ownership or source history changed during persistence')
++      }
++    } else if (session.requestProjection() !== undefined) {
++      session.append('request/projection', { messages: null })
++    }
++    const projection = session.requestProjection()
++    const boundaryMessages = session.deriveRequestMessages()
+     for (const message of boundaryMessages) {
+       if (this.frozenMessages.has(message)) continue
+       deepFreeze(message)
+@@ -610,6 +632,7 @@ export class ReactLoopAgent implements Agent {
+     const request = markAgentLoopRequest(Object.freeze({
+       ...header.config,
+       messages: boundaryMessages,
++      ...projection?.adapterContext === undefined ? {} : { adapterContext: projection.adapterContext },
+       ...header.tools !== undefined ? { tools: header.tools } : {},
+       sessionId: this.session.id,
+       signal,
+diff --git a/packages/core/agent-loop/src/invariant.ts b/packages/core/agent-loop/src/invariant.ts
+index b1b2cc93c..91ab69862 100644
+--- a/packages/core/agent-loop/src/invariant.ts
++++ b/packages/core/agent-loop/src/invariant.ts
+@@ -36,8 +36,9 @@ const install: InvariantInstaller = Object.assign((ctx: Context, fail: Invariant
+     if (header === undefined) {
+       return fail('a loop-built request with no request/header event in its session log')
+     }
+-    const expected = session.deriveMessages()
+-    if (JSON.stringify(options.messages) !== JSON.stringify(expected)) {
++    const expected = session.deriveRequestMessages()
++    if (JSON.stringify(options.messages) !== JSON.stringify(expected)
++      || JSON.stringify(options.adapterContext) !== JSON.stringify(session.requestProjection()?.adapterContext)) {
+       fail(`llm request for session "${String(session.id)}" diverges from the dispatch-time durable derivation (log-reconstruction desync)`)
+     }
+ 
+diff --git a/packages/core/agent/README.i18n.yaml b/packages/core/agent/README.i18n.yaml
+index 6b72fc7c6..962328d9a 100644
+--- a/packages/core/agent/README.i18n.yaml
++++ b/packages/core/agent/README.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write packages/core/agent/README.md
+-README.md: 82460df7492d470a55c37c4691af2a7d349144fe
+-README.zh.md: ed5f236bea9f972199d2528c5a2a32cb7e044df1
++README.md: 4c36d1d34ee3620e92d90def1ed0c37f901947d2
++README.zh.md: 30478f5f1b0b8450385e937874f1c54b693a2c31
+diff --git a/packages/core/agent/README.md b/packages/core/agent/README.md
+index 82460df74..4c36d1d34 100644
+--- a/packages/core/agent/README.md
++++ b/packages/core/agent/README.md
+@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
+ 
+ Use `dsh-agent` to create or resume live agents, send follow-up or steering input, inject model-facing context, cancel work, and wait for idle completion. Plugins, UI, hooks, and orchestrators can also observe or intercept agent activity and apply capabilities to one agent without affecting others. Choose it when code needs to control or extend live agents through the public `Agent` API. Pair it with an agent driver such as `dsh-agent-loop`; this package does not create model requests by itself. Initiator attribution is process-local and must be carried explicitly across workers, processes, durable queues, and restarts.
+ 
++`assembleContextFor` carries the requested route and marks calls without a turn signal as previews. Model selection resolves before prompt preparation; previews do not replace the selection captured for an executing step.
++
+ ## Table of Contents
+ 
+ - [Use this package](#use-this-package)
+@@ -184,3 +186,5 @@ These limits define when this package needs special care. They are current packa
+ This Dev Note is working context for maintainers; it is explicitly non-authoritative. Open, undecided directions: inter-agent channels beyond delegation — shared state, streaming child output, and background or poll semantics remain outside the current delegation seam; and the `SessionStartSource` values `'clear'`/`'compact'` are reserved with no emitter yet, pending the driving subsystems.
+ 
+ </details>
++
++An effect-owned context provider selects requests for one agent. Duplicate owners fail, and disposal removes only that registration. Automatic surface compaction defers while the provider owns the agent; the provider does not mutate a frozen model request.
+diff --git a/packages/core/agent/README.zh.md b/packages/core/agent/README.zh.md
+index ed5f236be..30478f5f1 100644
+--- a/packages/core/agent/README.zh.md
++++ b/packages/core/agent/README.zh.md
+@@ -11,6 +11,8 @@ kind: "package-reference"
+ 
+ 使用 `dsh-agent` 创建或恢复实时 agent、发送后续或 steering 输入、注入面向模型的上下文、取消工作，并等待 agent 进入空闲状态。插件、UI、钩子与编排器还可以观察或拦截 agent 活动，并仅为一个 agent 应用能力而不影响其他 agent。当代码需要通过公共 `Agent` API 控制或扩展实时 agent 时，请选择本包。请将它与 `dsh-agent-loop` 等 agent 驱动器配合使用；本包本身不会创建模型请求。发起方归因仅存在于进程内，跨 worker、进程、持久队列与重启时必须显式传递。
+ 
++`assembleContextFor` 携带请求路由，并将没有轮次信号的调用标为预览。模型选择在提示词准备之前解析；预览不替换执行中步骤已捕获的选择。
++
+ ## 目录
+ 
+ - [使用本包](#use-this-package)
+@@ -184,3 +186,5 @@ await handle.agent.whenIdle()
+ 本开发备注是维护者的工作上下文；它明确不具权威性。尚未决定的开放方向：委派之外的 agent 间通道——共享状态、流式子输出以及后台或轮询语义仍不在当前委派 seam 之内；以及 `SessionStartSource` 的 `'clear'`/`'compact'` 值已保留但尚无发出方，待驱动子系统落地。
+ 
+ </details>
++
++由可撤销 effect 持有的上下文提供者为单个 agent 选择请求内容。重复所有者会失败，释放只移除对应注册。该提供者持有 agent 时，自动 surface 压缩让出处理权；提供者不修改已冻结的模型请求。
+diff --git a/packages/core/agent/src/dispatch.ts b/packages/core/agent/src/dispatch.ts
+index 03fd952ac..cf8e45fb4 100644
+--- a/packages/core/agent/src/dispatch.ts
++++ b/packages/core/agent/src/dispatch.ts
+@@ -172,5 +172,12 @@ export function emitAgentEvent<K extends AgentSubjectEvent>(
+  * @returns the context to pass to `assemble()`.
+  */
+ export function assembleContextFor(agent: Agent, signal?: AbortSignal): AssembleContext {
+-  return { agent, scope: agent, ...signal === undefined ? {} : { signal } }
++  const previous = agent.session.requestHeader()?.config
++  const provider = agent.options.provider ?? previous?.provider
++  const model = agent.options.model ?? previous?.model
++  return {
++    agent, scope: agent,
++    route: { ...provider === undefined ? {} : { provider }, ...model === undefined ? {} : { model } },
++    ...signal === undefined ? { preview: true } : { signal },
++  }
+ }
+diff --git a/packages/core/agent/src/index.ts b/packages/core/agent/src/index.ts
+index 21c95b5c6..bd4fe01c0 100644
+--- a/packages/core/agent/src/index.ts
++++ b/packages/core/agent/src/index.ts
+@@ -243,6 +243,30 @@ interface FactorySlot {
+  * nested lineage that starts an owning-fiber unload is excluded from its own drain.
+  */
+ export class AgentRegistry extends Service {
++  private readonly contextProviders = new WeakMap<Agent, import('./runtime-types.ts').AgentContextProvider>()
++
++  /**
++   * Own context selection for one agent until disposal. Duplicate owners fail.
++   * @param agent - live agent whose requests are selected.
++   * @param provider - selector called after input admission, before logging and freezing.
++   * @returns effect-scoped disposal of this selection policy.
++   */
++  registerContextProvider(agent: Agent, provider: import('./runtime-types.ts').AgentContextProvider): () => void {
++    return this.ctx.effect(() => {
++      if (this.contextProviders.has(agent)) throw new Error('Agent already has a context provider')
++      this.contextProviders.set(agent, provider)
++      return () => { if (this.contextProviders.get(agent) === provider) this.contextProviders.delete(agent) }
++    })
++  }
++
++  /**
++   * Read the current selector; automatic surface compaction defers while one owns the agent.
++   * @param agent - agent to inspect.
++   * @returns the registered selection policy, or undefined for ordinary surface requests.
++   */
++  contextProvider(agent: Agent): import('./runtime-types.ts').AgentContextProvider | undefined {
++    return this.contextProviders.get(agent)
++  }
+   private store = new Map<SessionId, AgentEntry>()
+   private factory: FactorySlot | undefined
+   private readonly initiators = new AsyncLocalStorage<Agent | undefined>()
+diff --git a/packages/core/agent/src/model-selection.ts b/packages/core/agent/src/model-selection.ts
+index 172423afc..197bc3bac 100644
+--- a/packages/core/agent/src/model-selection.ts
++++ b/packages/core/agent/src/model-selection.ts
+@@ -74,9 +74,16 @@ function modelSwitchNotice(previous: ModelSelection, selected: ModelSelection) {
+  * @returns Disposer for all scoped waterfall listeners.
+  */
+ export function installModelSelection(agentCtx: Context, selection: ModelSelectionRef): () => void {
+-  const disposeAssembly = agentCtx.on('system-prompt/assemble', async (_assembly, _context, next) => {
++  const disposeResolve = agentCtx.on('system-prompt/resolve-context', async (_context, next) => {
+     const selected = selection.current
++    const context = await next()
++    if (!context.preview) selection.assembled = selected
++    return selected === undefined ? context : { ...context, route: { provider: selected.provider, model: selected.model } }
++  })
++  const disposeAssembly = agentCtx.on('system-prompt/assemble', async (_assembly, context, next) => {
++    const selected = selection.assembled
+     const assembled = await next()
++    if (context.preview) return { ...assembled, variables: { ...assembled.variables, ...context.route } }
+     selection.assembled = selected
+     if (selected === undefined) return assembled
+     return {
+@@ -120,6 +127,7 @@ export function installModelSelection(agentCtx: Context, selection: ModelSelecti
+     { prepend: true },
+   )
+   return () => {
++    disposeResolve()
+     disposeAssembly()
+     disposeRequest()
+     disposeNotice()
+diff --git a/packages/core/agent/src/runtime-types.ts b/packages/core/agent/src/runtime-types.ts
+index 31338e8d8..99f4871d2 100644
+--- a/packages/core/agent/src/runtime-types.ts
++++ b/packages/core/agent/src/runtime-types.ts
+@@ -15,6 +15,12 @@ export type { AgentCancelCause } from '@deepseek-ai/dsh-session'
+ import type { Agent, InboxTarget } from './types.ts'
+ export type { Agent } from './types.ts'
+ import type {} from '@deepseek-ai/dsh-system-prompt'
++
++/** Context selection before request freezing, with the original durable surface and prepared route. */
++export type AgentContextProvider = (
++  request: import('@deepseek-ai/dsh-llm').GenerateOptions,
++  prepared: import('@deepseek-ai/dsh-llm').PreparedLlmCall | undefined,
++) => Promise<import('@deepseek-ai/dsh-session').SessionEventMap['request/projection']>
+ declare module '@deepseek-ai/dsh-system-prompt' {
+   interface AssembleContext {
+     /** Agent for this assembly; absent on diagnostics. When present, `scope` must identify the same agent. */
+diff --git a/packages/core/scope/src/scoped-events.generated.ts b/packages/core/scope/src/scoped-events.generated.ts
+index 8a35f5987..cb7207890 100644
+--- a/packages/core/scope/src/scoped-events.generated.ts
++++ b/packages/core/scope/src/scoped-events.generated.ts
+@@ -30,6 +30,8 @@ const scopedSubjectResolvers: Readonly<Record<string, ScopedSubjectResolver | nu
+   'subagent/end': null,
+   'subagent/start': null,
+   'system-prompt/assemble': args => (args[1] as Record<string, unknown>)['scope'],
++  'system-prompt/prepare': args => (args[0] as Record<string, unknown>)['scope'],
++  'system-prompt/resolve-context': args => (args[0] as Record<string, unknown>)['scope'],
+   'tools/execute': args => (args[0] as Record<string, unknown>)['agent'],
+   'tools/post-execute': args => (args[0] as Record<string, unknown>)['agent'],
+   'tools/pre-execute': args => (args[0] as Record<string, unknown>)['agent'],
+diff --git a/packages/core/session/README.i18n.yaml b/packages/core/session/README.i18n.yaml
+index 6b68ca2d7..d430c1700 100644
+--- a/packages/core/session/README.i18n.yaml
++++ b/packages/core/session/README.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write packages/core/session/README.md
+-README.md: cdcab8ec4d2f6960bb651aff46745b20f91632e2
+-README.zh.md: 745615f67084430475e0739b22afa35556b71ee6
++README.md: 19942446c4066ab7d63898a6be6155f658676a7e
++README.zh.md: 1ad99a13743dab0f58b7f8d5c9515b85714c9ab2
+diff --git a/packages/core/session/README.md b/packages/core/session/README.md
+index 2cca6f2f8..19942446c 100644
+--- a/packages/core/session/README.md
++++ b/packages/core/session/README.md
+@@ -197,3 +197,5 @@ None.
+ 
+ 
+ `session.appendInformational(type, data)` records an external informational event with `ignorable: true`. It uses the same JSON snapshot, validation and publication path as `append`, never accepts surface metadata, and refuses built-in event types. Stored readers preserve it without adding model history. Observers must defer further appends until publication returns; reentrant appends remain refused.
++
++Context checkpoints and their commit markers are log-only records. Request projections preserve the selected messages and optional native prefix without replacing the original surface. deriveRequestMessages() reads that selection; a null projection restores ordinary surface derivation. Auxiliary compaction inputs and completed outputs are correlated in the same log.
+diff --git a/packages/core/session/README.zh.md b/packages/core/session/README.zh.md
+index 53258a802..1ad99a137 100644
+--- a/packages/core/session/README.zh.md
++++ b/packages/core/session/README.zh.md
+@@ -197,3 +197,5 @@ session.deriveMessages()         // the derived model history
+ 
+ 
+ `session.appendInformational(type, data)` 为外部信息事件写入 `ignorable: true`。它沿用 `append` 的 JSON 快照、校验和发布路径，不接受 surface 元数据，也拒绝内置事件类型。存储读取保留该事件，但不会增加模型历史。观察器必须等当前发布返回后再追加事件；重入写入仍被拒绝。
++
++上下文检查点及其提交标记只进入日志。请求投影记录选中的消息与可选原生前缀，不替换原始 surface。deriveRequestMessages() 读取该选择；空投影恢复普通 surface 派生。辅助压缩的输入与成功输出在同一日志中关联。
+diff --git a/packages/core/session/src/index.ts b/packages/core/session/src/index.ts
+index a65847fc6..534ae00db 100644
+--- a/packages/core/session/src/index.ts
++++ b/packages/core/session/src/index.ts
+@@ -836,6 +836,26 @@ export class Session {
+   /** {@link SurfaceManager.replaceGeneration} the cache was built under. */
+   private derivedGeneration = 0
+ 
++  /**
++   * Read the latest logged request selection without changing the original surface.
++   * @returns the selected messages/native prefix, or undefined before a selector has run.
++   */
++  requestProjection(): SessionEventMap['request/projection'] | undefined {
++    for (let index = this.log.length - 1; index >= 0; index--) {
++      const event = this.log[index]
++      if (event?.type === 'request/projection') return event.data
++    }
++    return undefined
++  }
++
++  /**
++   * Reconstruct the latest dispatch-time message selection from its logged projection.
++   * @returns selected messages, or the ordinary surface after a logged reset.
++   */
++  deriveRequestMessages(): Message[] {
++    return this.requestProjection()?.messages?.slice() ?? this.deriveMessages()
++  }
++
+   /**
+    * Derive the LLM message history by walking the ordered sequences of
+    * message-producing events maintained by `surfaceOp` markers. The
+diff --git a/packages/core/session/src/known-event-types.ts b/packages/core/session/src/known-event-types.ts
+index dd6411240..8deea1b95 100644
+--- a/packages/core/session/src/known-event-types.ts
++++ b/packages/core/session/src/known-event-types.ts
+@@ -33,6 +33,10 @@ export const KNOWN_SESSION_EVENT_TYPES: ReadonlySet<string> = new Set([
+   'compaction/prune',
+   'compaction/start',
+   'compaction/summary',
++  'context/checkpoint',
++  'context/checkpoint-commit',
++  'context/operation',
++  'context/operation-result',
+   'deliverables/presented',
+   'feedback/message-delete',
+   'feedback/message-put',
+@@ -47,6 +51,7 @@ export const KNOWN_SESSION_EVENT_TYPES: ReadonlySet<string> = new Set([
+   'plan/mode',
+   'request/context',
+   'request/header',
++  'request/projection',
+   'sandbox/mode',
+   'schedule/change',
+   'session-log-deepseek/delivery-accepted',
+diff --git a/packages/core/session/src/surface.ts b/packages/core/session/src/surface.ts
+index 5d8ce74fe..5c4ed63a5 100644
+--- a/packages/core/session/src/surface.ts
++++ b/packages/core/session/src/surface.ts
+@@ -142,6 +142,31 @@ export function validateSessionEventData(
+   subject: string,
+ ): void {
+   const data: unknown = event.data
++  if (event.type === 'context/checkpoint') {
++    if (!isRecord(data) || typeof data.key !== 'string' || !data.key || !isRecord(data.state)) throw new Error(`${subject} has invalid checkpoint data`)
++  } else if (event.type === 'context/checkpoint-commit') {
++    if (!isRecord(data) || !Number.isSafeInteger(data.checkpoint) || (data.checkpoint as number) < 0) throw new Error(`${subject} has invalid checkpoint reference`)
++  } else if (event.type === 'context/operation') {
++    if (!isRecord(data) || !['native-compact', 'portable-summary'].includes(data.kind as string)
++      || !isRecord(data.request)) throw new Error(`${subject} has invalid context operation`)
++  } else if (event.type === 'context/operation-result') {
++    if (!isRecord(data) || !Number.isSafeInteger(data.operation) || (data.operation as number) < 0
++      || !Object.hasOwn(data, 'output')) throw new Error(`${subject} has invalid context operation result`)
++  } else if (event.type === 'request/projection') {
++    if (!isRecord(data) || data.messages !== null && !Array.isArray(data.messages)) throw new Error(`${subject} has invalid projected messages`)
++    if (Array.isArray(data.messages)) for (const message of data.messages) {
++      if (!isRecord(message) || typeof message.id !== 'string' || !message.id
++        || !['system', 'user', 'assistant'].includes(message.role as string)
++        || !Array.isArray(message.content) || !isRecord(message.source) || typeof message.source.kind !== 'string') {
++        throw new Error(`${subject} contains an invalid projected message`)
++      }
++    }
++    if (data.adapterContext !== undefined) {
++      const context = data.adapterContext
++      if (data.messages === null || !isRecord(context) || typeof context.format !== 'string' || !context.format
++        || typeof context.scope !== 'string' || !context.scope || !Array.isArray(context.input)) throw new Error(`${subject} has invalid native context`)
++    }
++  }
+   if (event.type === 'request/header') {
+     if (!isRecord(data)) throw new Error(`${subject} data must be an object`)
+     const header = data['header']
+diff --git a/packages/core/session/src/types.ts b/packages/core/session/src/types.ts
+index 139fccd5a..8a2055f15 100644
+--- a/packages/core/session/src/types.ts
++++ b/packages/core/session/src/types.ts
+@@ -12,6 +12,8 @@ import type {
+   ToolResultMessage,
+   ToolSchema,
+   UserMessage,
++  Message,
++  AdapterContext,
+ } from '@deepseek-ai/dsh-llm'
+ import type { JsonValue } from '@deepseek-ai/dsh-util-values'
+ 
+@@ -267,6 +269,16 @@ export type RequestHeaderReason = 'initial' | 'resume' | 'change' | 'series'
+  * compact raw streams so persistence stores one durable settlement per attempt.
+  */
+ export interface SessionEventMap {
++  /** Complete candidate checkpoint; selectable only after its commit marker. */
++  'context/checkpoint': { key: string; state: JsonValue }
++  /** Publishes an earlier checkpoint whose candidate data passed a durability barrier. */
++  'context/checkpoint-commit': { checkpoint: SessionSeq }
++  /** Exact auxiliary compaction input admitted before dispatch. */
++  'context/operation': { kind: 'native-compact' | 'portable-summary'; request: JsonValue }
++  /** Successful auxiliary output correlated with its logged input. */
++  'context/operation-result': { operation: SessionSeq; output: JsonValue }
++  /** Selected request messages and native prefix; null restores ordinary surface derivation. */
++  'request/projection': { messages: Message[] | null; adapterContext?: AdapterContext }
+   /**
+    * Opens turn `turn` before the loop claims queued input or runs pre-step.
+    * Rejection, empty input, cancellation, or failure may close it with no
+diff --git a/packages/core/system-prompt/README.i18n.yaml b/packages/core/system-prompt/README.i18n.yaml
+index 4ea091a96..6544b8eb8 100644
+--- a/packages/core/system-prompt/README.i18n.yaml
++++ b/packages/core/system-prompt/README.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write packages/core/system-prompt/README.md
+-README.md: 7e4826c4fb51873db02fd80eca632c3d1dd8d550
+-README.zh.md: 55730f11fffdc6ca92ce83613c9af3b1331351b1
++README.md: 84a4b5f213d11b4e9ea3424928a004ecb493a50c
++README.zh.md: a7ecbc1ac390dd06b3dc9f56fe3565f2f8c57202
+diff --git a/packages/core/system-prompt/README.md b/packages/core/system-prompt/README.md
+index 7e4826c4f..84a4b5f21 100644
+--- a/packages/core/system-prompt/README.md
++++ b/packages/core/system-prompt/README.md
+@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
+ 
+ `dsh-system-prompt` lets agents receive one ordered system prompt and the available tool schemas for each model step. Use it to add prompt sections, dynamic runtime facts, reusable variables, or tool schemas, or to control the fixed harness identity, deployment persona, runtime context, and model-facing tool order. Agent-scoped contributions override same-named global defaults without affecting other agents. Invalid complete-prompt combinations and unresolved variables fail assembly instead of sending a malformed prompt.
+ 
++Before evaluating providers, assembly resolves `system-prompt/resolve-context`, shallow-freezes the resulting context and route, and awaits `system-prompt/prepare`. Resolution must preserve scope and cancellation. Preparation can register per-scope contributions; a failure prevents provider evaluation. `preview` marks a read-only assembly and must not advance execution state.
++
+ ## Table of Contents
+ 
+ - [Use this package](#use-this-package)
+diff --git a/packages/core/system-prompt/README.zh.md b/packages/core/system-prompt/README.zh.md
+index 55730f11f..a7ecbc1ac 100644
+--- a/packages/core/system-prompt/README.zh.md
++++ b/packages/core/system-prompt/README.zh.md
+@@ -11,6 +11,8 @@ kind: "package-reference"
+ 
+ `dsh-system-prompt` 让 agent 在每个模型步骤收到一份有序系统提示词与可用工具 schema。需要添加提示词段、动态 runtime 事实、可复用变量或工具 schema，或者控制固定 harness 身份、部署 persona、runtime 上下文和面向模型的工具顺序时，请使用本包。Agent 作用域的贡献会覆盖同名全局默认值，而不影响其他 agent。无效的完整提示词组合与未解析变量会使组装失败，不会向模型发送格式错误的提示词。
+ 
++组装在读取贡献提供方之前依次执行 `system-prompt/resolve-context`、浅冻结所得上下文及路由、等待 `system-prompt/prepare`。解析必须保留作用域和取消信号。准备阶段可注册作用域贡献；失败时不再读取提供方。`preview` 表示只读预览，不得推进执行状态。
++
+ ## 目录
+ 
+ - [使用本包](#use-this-package)
+diff --git a/packages/core/system-prompt/src/index.ts b/packages/core/system-prompt/src/index.ts
+index d83cc4d21..b8e999fa0 100644
+--- a/packages/core/system-prompt/src/index.ts
++++ b/packages/core/system-prompt/src/index.ts
+@@ -16,6 +16,20 @@ declare module '@deepseek-ai/cordis' {
+   }
+ 
+   interface Events {
++    /**
++     * Resolve one assembly's route before evaluating any prompt or tool provider.
++     * Scope-filtered dispatch: scoped listeners resolve only their own scope.
++     * @param context - scoped assembly input; implementations preserve its scope and signal.
++     * @mode waterfall
++     */
++    'system-prompt/resolve-context'(this: Scoped<SystemPrompt>, context: AssembleContext, next: () => Promise<AssembleContext>): Promise<AssembleContext>
++    /**
++     * Prepare scoped registrations using the resolved, shallow-frozen assembly context.
++     * Scope-filtered dispatch: scoped listeners prepare only their own scope.
++     * @param context - resolved route, scope and cancellation for this assembly.
++     * @mode serial
++     */
++    'system-prompt/prepare'(this: Scoped<SystemPrompt>, context: Readonly<AssembleContext>): Promise<void>
+     /**
+      * Expert waterfall over the assembled sections, contexts, tools, and variables.
+      * Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): scoped listeners
+@@ -40,6 +54,10 @@ declare module '@deepseek-ai/cordis' {
+ 
+ /** Merge-extensible context for one prompt assembly. */
+ export interface AssembleContext {
++  /** Preview assemblies must not advance per-step routing or execution state. */
++  preview?: boolean
++  /** Requested route captured before dynamic registration and prompt evaluation. */
++  route?: Readonly<{ provider?: string; model?: string }>
+   /**
+    * Scope whose providers and waterfall listeners participate. When absent,
+    * only global providers and subject-less listeners participate.
+@@ -397,6 +415,8 @@ class PromptLayer implements ScopeLayer {
+ 
+ /** Registry service for the prompt inputs assembled before each model step. */
+ export class SystemPrompt extends Service {
++  /** Capability marker for consumers requiring pre-assembly scoped registration. */
++  readonly supportsPreparation = true
+   static Config: z<Config> = z.object({
+     includeHarnessIdentity: z.boolean().default(true),
+     includeRuntimeContext: z.boolean().default(true),
+@@ -550,6 +570,18 @@ export class SystemPrompt extends Service {
+    */
+   // Keep configuration failures on the declared asynchronous error path.
+   async assemble(context: AssembleContext = {}): Promise<PromptAssembly> {
++    const initial = context
++    context = await this.ctx.waterfall(
++      scopeTarget(this, initial.scope), 'system-prompt/resolve-context', initial,
++      () => Promise.resolve(initial),
++    )
++    if (context.scope !== initial.scope || context.signal !== initial.signal) {
++      throw new Error('prompt context resolution cannot replace scope or cancellation')
++    }
++    context = Object.freeze({ ...context, ...context.route === undefined ? {} : { route: Object.freeze({ ...context.route }) } })
++    context.signal?.throwIfAborted()
++    await this.ctx.serial(scopeTarget(this, context.scope), 'system-prompt/prepare', context)
++    context.signal?.throwIfAborted()
+     const scope = context.scope
+     const scopeLayers = this.layers.chainLayers(scope)
+     const runtimeContextSuppressed = !this.layers.global.runtimeContextSuppressors.isEmpty()
+diff --git a/packages/core/system-prompt/tests/system-prompt.spec.ts b/packages/core/system-prompt/tests/system-prompt.spec.ts
+index 8e60ea2be..0573d935f 100644
+--- a/packages/core/system-prompt/tests/system-prompt.spec.ts
++++ b/packages/core/system-prompt/tests/system-prompt.spec.ts
+@@ -361,7 +361,8 @@ describe('SystemPrompt', () => {
+     const assembly = await ctx.systemPrompt.assemble(passed)
+     expect(seen).toEqual([['harness:identity', 'deployment:persona-prefix', 'base', 'deployment:persona-suffix', 'from-a']])
+     expect(assembly.sections.map(s => s.name)).toEqual(['harness:identity', 'deployment:persona-prefix', 'base', 'deployment:persona-suffix', 'from-a'])
+-    expect(contexts[0]).toBe(passed) // the caller's context reaches listeners
++    expect(contexts[0]).toEqual(passed)
++    expect(Object.isFrozen(contexts[0])).toBe(true)
+   })
+ 
+   it('lets a waterfall listener short-circuit by not calling next()', async () => {
+diff --git a/packages/fs/fs-local/README.i18n.yaml b/packages/fs/fs-local/README.i18n.yaml
+index 421f62d77..407e70c38 100644
+--- a/packages/fs/fs-local/README.i18n.yaml
++++ b/packages/fs/fs-local/README.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write packages/fs/fs-local/README.md
+-README.md: 427cf02631f9d56246851f7fc67c92dd662c2a62
+-README.zh.md: 7009d9dd853b5443780978036792f10ebc9706b5
++README.md: f4497d84e14b75fbde6a7f8b28735f17859cf4f9
++README.zh.md: fa8b28a63bf75712200900aaf9be64ae0b3879b1
+diff --git a/packages/fs/fs-local/README.md b/packages/fs/fs-local/README.md
+index 427cf0263..f4497d84e 100644
+--- a/packages/fs/fs-local/README.md
++++ b/packages/fs/fs-local/README.md
+@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
+ 
+ Use `dsh-fs-local` to read, list, atomically write, and edit files on the host filesystem. Relative paths resolve from a configurable base directory, while absolute paths and parent traversal remain unrestricted. Paths and symlinks that reach the same file share one identity. Writes preserve file permissions, and optional version guards reject stale overwrites. Choose this package for direct host access; use `fs-sandbox` for confined mutations or `fs-e2b` for files in a remote execution world.
+ 
++Guarded `removeFile` serializes with writes to the same target, checks the observed version and regular-file type, and unlinks one file. It does not recursively remove directories.
++
+ ## Table of Contents
+ 
+ - [Use this package](#use-this-package)
+diff --git a/packages/fs/fs-local/README.zh.md b/packages/fs/fs-local/README.zh.md
+index 7009d9dd8..fa8b28a63 100644
+--- a/packages/fs/fs-local/README.zh.md
++++ b/packages/fs/fs-local/README.zh.md
+@@ -11,6 +11,8 @@ kind: "package-reference"
+ 
+ 使用 `dsh-fs-local` 可在宿主文件系统上读取、列出、原子写入和编辑文件。相对路径从可配置的基准目录解析，而绝对路径和父目录遍历不受限制。到达同一文件的路径和符号链接共享一个身份。写入保留文件权限，可选版本防护会拒绝陈旧覆盖。直接访问宿主文件时选择本包；需要约束变更时使用 `fs-sandbox`，文件位于远程执行世界时使用 `fs-e2b`。
+ 
++带版本保护的 `removeFile` 与同一目标的写入串行执行，检查已观察版本及普通文件类型，再删除单个文件；不递归删除目录。
++
+ ## 目录
+ 
+ - [使用本包](#use-this-package)
+diff --git a/packages/fs/fs-local/src/index.ts b/packages/fs/fs-local/src/index.ts
+index 22fc6310f..a26ae2be4 100644
+--- a/packages/fs/fs-local/src/index.ts
++++ b/packages/fs/fs-local/src/index.ts
+@@ -6,6 +6,7 @@
+ 
+ import { Context } from '@deepseek-ai/cordis'
+ import { constants as bufferConstants } from 'node:buffer'
++import { unlink } from 'node:fs/promises'
+ import { isAbsolute, relative, resolve, sep } from 'node:path'
+ import { pathToFileURL } from 'node:url'
+ import z from '@deepseek-ai/schemastery'
+@@ -63,6 +64,7 @@ const MAX_DIFF_BASIS_BYTES = Math.min(
+  * containment with a stricter backend or a `tools/execute` permission plugin.
+  */
+ export class LocalFileSystem extends FileSystem {
++  override get supportsFileRemoval(): boolean { return true }
+   static Config: z<Config> = z.object({
+     cwd: z.string().default(process.cwd()),
+     diffBasisMaxBytes: z.number().default(DEFAULT_DIFF_BASIS_MAX_BYTES),
+@@ -227,6 +229,21 @@ export class LocalFileSystem extends FileSystem {
+     })
+   }
+ 
++  override async removeFile(target: FsTarget, expected: { version: FsVersion }, signal?: AbortSignal): Promise<void> {
++    return this.withLock(target.targetKey, async () => {
++      signal?.throwIfAborted()
++      const existing = await probe(target.targetKey)
++      if (!existing || existing.version !== expected.version) {
++        throw new FsError(`cannot delete "${target.displayPath}": file changed since it was read`, 'FS_STALE_VERSION')
++      }
++      if (existing.type !== 'file') {
++        throw new FsError(`cannot delete "${target.displayPath}": not a regular file`, 'FS_NOT_REGULAR_FILE')
++      }
++      signal?.throwIfAborted()
++      await unlink(String(target.targetKey))
++    })
++  }
++
+   override async editText(
+     target: FsTarget,
+     edit: FsEditRequest,
+diff --git a/packages/fs/fs-sandbox/README.i18n.yaml b/packages/fs/fs-sandbox/README.i18n.yaml
+index 0b70005be..e7641d014 100644
+--- a/packages/fs/fs-sandbox/README.i18n.yaml
++++ b/packages/fs/fs-sandbox/README.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write packages/fs/fs-sandbox/README.md
+-README.md: ec9bdcea1ded38e649dd21940a526440006930bf
+-README.zh.md: 64d4f8ab4dadcc3744452b8185270204f875eea7
++README.md: 951d1180bb4a127a8469a3dbd20cef6ab93ab6fc
++README.zh.md: 44e1198aaa04d6894adde0e93e8f8f59ed6f5436
+diff --git a/packages/fs/fs-sandbox/README.md b/packages/fs/fs-sandbox/README.md
+index ec9bdcea1..951d1180b 100644
+--- a/packages/fs/fs-sandbox/README.md
++++ b/packages/fs/fs-sandbox/README.md
+@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
+ 
+ `dsh-fs-sandbox` confines model file writes and edits according to each session's sandbox mode while preserving the local filesystem's read behavior. In `read-only`, it rejects every mutation; in `workspace-write`, it permits targets only inside the session workspace or a platform temporary root; in `danger-full-access`, it does not restrict mutations. Use it instead of `fs-local` with `ctx.sandboxPolicy` when sessions need workspace-confined file changes. Denied operations return `FS_SANDBOX_DENIED`, which filesystem tools present with the active mode and a same-turn escalation hint.
+ 
++Guarded `removeFile` applies the same current-path sandbox check as text mutations before calling the local backend. Read-only mode and paths outside writable roots are refused.
++
+ ## Table of Contents
+ 
+ - [Use this package](#use-this-package)
+diff --git a/packages/fs/fs-sandbox/README.zh.md b/packages/fs/fs-sandbox/README.zh.md
+index 64d4f8ab4..44e1198aa 100644
+--- a/packages/fs/fs-sandbox/README.zh.md
++++ b/packages/fs/fs-sandbox/README.zh.md
+@@ -11,6 +11,8 @@ kind: "package-reference"
+ 
+ `dsh-fs-sandbox` 按各会话的沙箱模式限制模型对文件的写入与编辑，同时保留本地文件系统的读取行为。`read-only` 拒绝所有变更；`workspace-write` 只允许目标位于会话工作区或平台临时根目录内；`danger-full-access` 不限制变更。当会话需要将文件变更限制在工作区内时，使用它代替 `fs-local`，并加载 `ctx.sandboxPolicy`。被拒绝的操作返回 `FS_SANDBOX_DENIED`，文件系统工具会显示当前模式和同轮次升级提示。
+ 
++带版本保护的 `removeFile` 在调用本地后端前，使用与文本修改相同的当前路径沙箱检查。只读模式及可写根目录之外的路径会被拒绝。
++
+ ## 目录
+ 
+ - [使用本包](#use-this-package)
+diff --git a/packages/fs/fs-sandbox/src/index.ts b/packages/fs/fs-sandbox/src/index.ts
+index 60dd6b3ba..5e0182ca0 100644
+--- a/packages/fs/fs-sandbox/src/index.ts
++++ b/packages/fs/fs-sandbox/src/index.ts
+@@ -87,6 +87,23 @@ export class SandboxedFileSystem extends LocalFileSystem {
+     return super.writeText(await this.checkedTarget(target, sandboxPolicy), content, expected, signal)
+   }
+ 
++  /**
++   * Apply the per-call mutation policy before guarded single-file removal.
++   * @param target - resolved file identity.
++   * @param expected - observed version required for removal.
++   * @param signal - cancellation checked before removal.
++   * @param sandboxPolicy - per-call policy, or the deployment fallback when omitted.
++   * @returns fulfillment after removal; rejects policy denial or a stale version.
++   */
++  override async removeFile(
++    target: FsTarget,
++    expected: { version: FsVersion },
++    signal?: AbortSignal,
++    sandboxPolicy?: SandboxExecutionPolicy,
++  ): Promise<void> {
++    return super.removeFile(await this.checkedTarget(target, sandboxPolicy), expected, signal)
++  }
++
+   /**
+    * Fence the edit by the per-call policy, then delegate to the inherited
+    * atomic edit. See {@link checkedTarget}.
+diff --git a/packages/fs/fs-sandbox/tests/fs-sandbox.spec.ts b/packages/fs/fs-sandbox/tests/fs-sandbox.spec.ts
+index e445c4755..212d877a4 100644
+--- a/packages/fs/fs-sandbox/tests/fs-sandbox.spec.ts
++++ b/packages/fs/fs-sandbox/tests/fs-sandbox.spec.ts
+@@ -58,6 +58,16 @@ function target(path: string): Promise<FsTarget> {
+ }
+ 
+ describe('the capability fact', () => {
++  it('fences guarded deletion for read-only and outside-workspace targets', async () => {
++    await boot('read-only')
++    const path = join(outside, 'delete.txt')
++    await writeFile(path, 'keep')
++    const file = await target(path)
++    const observed = (await fs.stat(file))!
++    await expect(fs.removeFile(file, observed)).rejects.toMatchObject({ code: 'FS_SANDBOX_DENIED' })
++    await expect(fs.removeFile(file, observed, undefined, { mode: 'workspace-write', workspaceRoot: workspace })).rejects.toMatchObject({ code: 'FS_SANDBOX_DENIED' })
++    expect(await readFile(path, 'utf8')).toBe('keep')
++  })
+   it('reports the deployment default mode (what the tool layer advertises against)', async () => {
+     await boot('workspace-write')
+     expect(fs.sandboxMode).toBe('workspace-write')
+diff --git a/packages/fs/fs/README.i18n.yaml b/packages/fs/fs/README.i18n.yaml
+index 00b994a90..b45587755 100644
+--- a/packages/fs/fs/README.i18n.yaml
++++ b/packages/fs/fs/README.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write packages/fs/fs/README.md
+-README.md: baad80c13fa5cbdfebc4e1a367d0726f728cffdb
+-README.zh.md: a6598c9b532ebe0349c5ad9af9c56eab75f4c756
++README.md: 6905d9c804005135a58b7e0e6bb1f101b54a06bb
++README.zh.md: 4a466f3adbed39ca84775f4417c4bcd93cd9c22d
+diff --git a/packages/fs/fs/README.md b/packages/fs/fs/README.md
+index baad80c13..6905d9c80 100644
+--- a/packages/fs/fs/README.md
++++ b/packages/fs/fs/README.md
+@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
+ 
+ Use `dsh-fs` when an application needs consistent filesystem operations across host, confined, or remote execution environments. It lets consumers resolve stable file identities, map shared host files where supported, perform bounded text and byte reads, list directories, and apply atomic text writes and literal edits. Version guards are optional, so a backend works without policy enforcement; callers can supply a guard to reject a mutation after the file changes. Choose `fs-local`, `fs-sandbox`, or `fs-e2b` for the required execution environment. Model-facing filesystem tools are provided separately by `dsh-tool-fs`.
+ 
++`supportsFileRemoval` is false unless the provider implements `removeFile`. Removal requires an observed version, rejects directories and stale versions, and accepts cancellation and a per-call sandbox policy. Providers without this capability reject without mutation.
++
+ ## Table of Contents
+ 
+ - [Use this package](#use-this-package)
+diff --git a/packages/fs/fs/README.zh.md b/packages/fs/fs/README.zh.md
+index a6598c9b5..4a466f3ad 100644
+--- a/packages/fs/fs/README.zh.md
++++ b/packages/fs/fs/README.zh.md
+@@ -11,6 +11,8 @@ kind: "package-reference"
+ 
+ 应用需要在宿主、受限或远程执行环境中使用一致的文件系统操作时，选择 `dsh-fs`。消费方可以解析稳定的文件身份、在受支持时映射共享宿主文件、执行有界的文本与字节读取、列出目录，并原子地写入文本及执行字面量编辑。版本防护是可选的，因此后端无需策略强制也能工作；调用方可以提供防护，在文件变化后拒绝变更。根据所需执行环境选择 `fs-local`、`fs-sandbox` 或 `fs-e2b`。面向模型的文件系统工具由 `dsh-tool-fs` 单独提供。
+ 
++仅当提供方实现 `removeFile` 时，`supportsFileRemoval` 才为真。删除需要已观察版本，拒绝目录和过期版本，并接受取消信号与逐次调用沙箱策略。不支持此能力的提供方在修改前拒绝。
++
+ ## 目录
+ 
+ - [使用本包](#use-this-package)
+diff --git a/packages/fs/fs/src/index.ts b/packages/fs/fs/src/index.ts
+index bfa05bf25..c2355171f 100644
+--- a/packages/fs/fs/src/index.ts
++++ b/packages/fs/fs/src/index.ts
+@@ -84,6 +84,8 @@ declare module '@deepseek-ai/cordis' {
+  * without changing the unguarded provider contract.
+  */
+ export abstract class FileSystem extends Service {
++  /** Whether this provider implements version-guarded regular-file deletion. */
++  get supportsFileRemoval(): boolean { return false }
+   constructor(ctx: Context) {
+     super(ctx, 'fs')
+   }
+@@ -255,6 +257,24 @@ export abstract class FileSystem extends Service {
+     sandboxPolicy?: SandboxExecutionPolicy,
+   ): Promise<FsWriteOutcome>
+ 
++  /**
++   * Delete one observed regular file; directories and stale versions are refused.
++   * Providers without guarded deletion must reject before mutating storage.
++     * @param _target - resolved file identity.
++     * @param _expected - observed version required for deletion.
++     * @param _signal - cancellation checked before publication.
++     * @param _sandboxPolicy - per-call mutation policy.
++   * @returns fulfillment after the file is removed.
++   */
++  removeFile(
++    _target: FsTarget,
++    _expected: { version: FsVersion },
++    _signal?: AbortSignal,
++    _sandboxPolicy?: SandboxExecutionPolicy,
++  ): Promise<void> {
++    return Promise.reject(new Error('filesystem provider does not support guarded file deletion'))
++  }
++
+   /**
+    * Atomically edit literal text. When supplied, the version guard is checked
+    * before matching so stale content reports `FS_STALE_VERSION`; omission edits
+diff --git a/packages/llm/llm/README.i18n.yaml b/packages/llm/llm/README.i18n.yaml
+index 72b171cd6..8ce3c2133 100644
+--- a/packages/llm/llm/README.i18n.yaml
++++ b/packages/llm/llm/README.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write packages/llm/llm/README.md
+-README.md: 75a5d3e1d51ada12338a41e54b42ad8d6d21c279
+-README.zh.md: e10706108d86f337c333b1f80a15c731fd2a00cf
++README.md: 929855bce80034ea66b8c09ac37feca959aae5bf
++README.zh.md: 68246c7e2e1920b7a4a71d285af2c44bc911b212
+diff --git a/packages/llm/llm/README.md b/packages/llm/llm/README.md
+index 75a5d3e1d..929855bce 100644
+--- a/packages/llm/llm/README.md
++++ b/packages/llm/llm/README.md
+@@ -171,3 +171,5 @@ This Dev Note is non-authoritative working context: open questions and undecided
+ - The `llm/adapters-updated` event is payload-free by design; consumers re-read the registries instead of receiving the new topology in the event.
+ 
+ </details>
++
++Prepared adapters may expose native counting and compaction operations. A logged native prefix is accepted only when both its format and scope match that prepared generation; the runtime refuses it before dispatch to any other adapter. The caller budgets and durably records auxiliary operations and their results.
+diff --git a/packages/llm/llm/README.zh.md b/packages/llm/llm/README.zh.md
+index e10706108..68246c7e2 100644
+--- a/packages/llm/llm/README.zh.md
++++ b/packages/llm/llm/README.zh.md
+@@ -171,3 +171,5 @@ for await (const chunk of ctx.llm.stream({
+ - `llm/adapters-updated` 事件按设计不携带载荷；消费方重新读取注册表，而不是在事件中接收新拓扑。
+ 
+ </details>
++
++准备好的适配器可以提供原生计数与压缩能力。日志中的原生前缀只有在格式与适用范围均匹配该适配器版本时才可发送；运行时会在其他适配器收到请求前拒绝不兼容前缀。调用方负责预算，以及辅助操作和结果的持久记录。
+diff --git a/packages/llm/llm/src/index.ts b/packages/llm/llm/src/index.ts
+index 367688c0d..8da857d83 100644
+--- a/packages/llm/llm/src/index.ts
++++ b/packages/llm/llm/src/index.ts
+@@ -161,6 +161,8 @@ export function assertUsableApiKey(raw: string, pkg: string, ref: string): strin
+ 
+ /** One model call whose config and adapter registration were resolved together. */
+ export interface PreparedLlmCall {
++  /** Context operations captured with this exact adapter generation. */
++  readonly nativeContext?: import('./types.ts').NativeContextCapability
+   /** Detached, deep-frozen config with any adapter-owned default materialized. */
+   readonly config: LlmCallConfig
+   /** Immutable retry policy captured with the adapter registration. */
+@@ -185,6 +187,8 @@ export interface PreparedLlmCall {
+ 
+ /** One adapter-owned model-resolution generation bound to its eventual stream call. */
+ export interface PreparedAdapterCall {
++  /** Native context operations using the same connection as stream. */
++  readonly nativeContext?: import('./types.ts').NativeContextCapability
+   /** Exact model metadata from the same adapter generation as {@link stream}. */
+   readonly model: LlmResolvedModelInfo
+   /** Dispatch through that generation without re-reading dynamic connection facts. */
+@@ -933,6 +937,7 @@ export class LlmRuntime extends TypertRemoteService {
+     let dispatched = false
+     return Object.freeze({
+       config: resolvedConfig,
++      ...adapterCall.nativeContext === undefined ? {} : { nativeContext: adapterCall.nativeContext },
+       retryPolicy: registration.retryPolicy,
+       adapterDefaults,
+       ...context === undefined ? {} : { context },
+@@ -955,6 +960,7 @@ export class LlmRuntime extends TypertRemoteService {
+           registration,
+           config: resolvedConfig,
+           modelInfo,
++          ...adapterCall.nativeContext === undefined ? {} : { nativeContext: adapterCall.nativeContext },
+           dispatch: options => adapterCall.stream(options),
+         })
+       },
+@@ -1019,10 +1025,12 @@ export class LlmRuntime extends TypertRemoteService {
+       let modelInfo: LlmResolvedModelInfo
+       let resolvedConfig: LlmCallConfig
+       let dispatch: (options: GenerateOptions) => AsyncIterable<StreamChunk>
++      let nativeContext = prepared?.nativeContext
+       if (prepared === undefined) {
+         const adapterCall = await adapter.prepareCall(options.provider, options.model, options.signal)
+         modelInfo = this.normalizeModelInfo(registration, options.model, adapterCall.model)
+         resolvedConfig = this.resolveCallWithInfo(options, modelInfo).config
++        nativeContext = adapterCall.nativeContext
+         dispatch = options => adapterCall.stream(options)
+       } else {
+         modelInfo = prepared.modelInfo
+@@ -1040,6 +1048,10 @@ export class LlmRuntime extends TypertRemoteService {
+         : Object.isFrozen(options)
+           ? deepFreeze({ ...options, ...resolvedConfig })
+           : { ...options, ...resolvedConfig }
++      if (options.adapterContext && (nativeContext?.format !== options.adapterContext.format
++        || nativeContext.scope !== options.adapterContext.scope)) {
++        throw new LlmError('Native context is incompatible with the prepared adapter', 'INVALID_NATIVE_CONTEXT')
++      }
+       // Files are never dispatched natively: every route receives handle text.
+       let projectedMessages: readonly Message[] = resolvedOptions.messages
+       if (projectedMessages.some(message => contentHasFile(message.content))) {
+@@ -1138,6 +1150,7 @@ interface AdapterRegistration {
+ }
+ 
+ interface PreparedDispatch {
++  readonly nativeContext?: import('./types.ts').NativeContextCapability
+   readonly registration: AdapterRegistration
+   readonly config: LlmCallConfig
+   readonly modelInfo: LlmResolvedModelInfo
+diff --git a/packages/llm/llm/src/types.ts b/packages/llm/llm/src/types.ts
+index bfddde7fc..e90920acc 100644
+--- a/packages/llm/llm/src/types.ts
++++ b/packages/llm/llm/src/types.ts
+@@ -8,6 +8,45 @@ import type { Branded } from '@deepseek-ai/dsh-brand'
+ import type { FileAttachmentRef, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
+ import type { ToolCallId, ProviderRequestId, ReasoningEffortId } from './brand.ts'
+ import type { Message } from './message.ts'
++import type { JsonValue } from '@deepseek-ai/dsh-util-values'
++
++/** Logged provider-native prefix; only the matching prepared adapter may interpret it. */
++export interface AdapterContext {
++  /** Versioned wire representation owned by the adapter. */
++  format: string
++  /** Compatibility identity captured with endpoint and credentials. */
++  scope: string
++  /** Complete native prefix, including retained items; messages carry its following delta. */
++  input: JsonValue[]
++}
++
++/** Native context operations bound to one prepared adapter generation. */
++export interface NativeContextCapability {
++  /** Versioned native input representation. */
++  readonly format: string
++  /** Compatibility identity for stored prefixes. */
++  readonly scope: string
++  /**
++   * Convert a balanced history region without executing tools.
++   * @param messages - complete ordered messages with balanced tool interactions.
++   * @returns native items for this adapter generation.
++   */
++  encode(messages: Message[]): JsonValue[]
++  /**
++   * Count complete input, including current instructions and tools.
++   * @param options - current request controls, instructions, tools and cancellation.
++   * @param input - complete native prefix and following items.
++   * @returns effective input tokens, including opaque context.
++   */
++  count(options: GenerateOptions, input: JsonValue[]): Promise<number>
++  /**
++   * Return a complete compacted prefix; callers own budgeting and durable publication.
++   * @param options - current instructions and cancellation for the prepared route.
++   * @param input - bounded complete input window.
++   * @returns all returned items, including retained originals and opaque state.
++   */
++  compact(options: GenerateOptions, input: JsonValue[]): Promise<JsonValue[]>
++}
+ 
+ declare module '@deepseek-ai/cordis' {
+   interface Events {
+@@ -417,6 +456,8 @@ export interface ToolSchema {
+ 
+ /** A single model request, fully assembled. */
+ export interface GenerateOptions {
++  /** Logged native prefix selected before freezing; incompatible adapters must reject it. */
++  adapterContext?: AdapterContext
+   /** Registered provider route selecting the adapter instance. */
+   provider: string
+   model: string
+diff --git a/packages/shell/bash-local/README.i18n.yaml b/packages/shell/bash-local/README.i18n.yaml
+index 2c2e783ba..a93a9e166 100644
+--- a/packages/shell/bash-local/README.i18n.yaml
++++ b/packages/shell/bash-local/README.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write packages/shell/bash-local/README.md
+-README.md: 462054d435433067355a91103aa0d606cea6521b
+-README.zh.md: 6127c6265079d522b5a58d8b1fd019c1bd909262
++README.md: e5f7155efcada1d22203b33c1c1ea322d9168ca5
++README.zh.md: 8d9f29510a13595103d2f14002327bab49564d9d
+diff --git a/packages/shell/bash-local/README.md b/packages/shell/bash-local/README.md
+index 462054d43..e5f7155ef 100644
+--- a/packages/shell/bash-local/README.md
++++ b/packages/shell/bash-local/README.md
+@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
+ 
+ `dsh-bash-local` is the default Bash executor for POSIX: every command runs as a fresh, non-login `bash -c` process with no rc files, so no shell state survives between calls. It applies configured budgets — working directory, timeout, output caps — to each command, classifies timeouts and cancellations, and returns bounded output with spill-file recovery when a stream overflows. Commands run with the harness process's own authority: this executor confines nothing, so compose `dsh-bash-sandbox` when commands need the sandbox capability. The model-facing `bash` tool talks to it once it is mounted.
+ 
++`interactive: true` opens stdin for later UTF-8 writes through the background handle. Closing stdin signals EOF. Managed-range termination and waiting remain available after the command exits.
++
+ ## Table of Contents
+ 
+ - [Use this package](#use-this-package)
+diff --git a/packages/shell/bash-local/README.zh.md b/packages/shell/bash-local/README.zh.md
+index 6127c6265..8d9f29510 100644
+--- a/packages/shell/bash-local/README.zh.md
++++ b/packages/shell/bash-local/README.zh.md
+@@ -11,6 +11,8 @@ kind: "package-reference"
+ 
+ `dsh-bash-local` 是 POSIX 上的默认 Bash 执行器：每条命令都以全新的非登录 `bash -c` 进程运行，不读取 rc 文件，因此调用之间不会残留任何 shell 状态。它会为每条命令应用已配置的预算——工作目录、超时、输出上限——对超时与取消进行分类，并在流溢出时返回有界输出与 spill 文件恢复。命令以 harness 进程自身的权限运行：本执行器不做任何隔离，需要沙箱能力时请组合 `dsh-bash-sandbox`。挂载后，面向模型的 `bash` 工具会与它对接。
+ 
++`interactive: true` 打开标准输入管道，可通过后台句柄继续写入 UTF-8 文本；关闭管道表示输入结束。命令退出后仍可终止和等待整个受管范围。
++
+ ## 目录
+ 
+ - [使用本包](#use-this-package)
+diff --git a/packages/shell/bash-local/src/index.ts b/packages/shell/bash-local/src/index.ts
+index 0ab4c0396..3c821a32f 100644
+--- a/packages/shell/bash-local/src/index.ts
++++ b/packages/shell/bash-local/src/index.ts
+@@ -146,6 +146,7 @@ export class LocalBashExecutor extends ShellExecutor {
+    * values and never re-default.
+    */
+   resolve(request: ShellExecRequest): ShellExecSpec {
++    if (request.interactive && request.stdin !== undefined) throw new Error('interactive stdin cannot include batch stdin data')
+     const timeoutMs = clampTimeout(
+       request.timeoutMs,
+       this.config.timeoutMs,
+@@ -163,6 +164,7 @@ export class LocalBashExecutor extends ShellExecutor {
+       // Carry stdin/ordinary env/trusted dshEnv through verbatim — optional,
+       // no config default. The subprocess service owns the scrub and merge order.
+       ...request.stdin !== undefined ? { stdin: request.stdin } : {},
++      ...request.interactive !== undefined ? { interactive: request.interactive } : {},
+       ...request.env !== undefined ? { env: request.env } : {},
+       ...request.dshEnv !== undefined ? { dshEnv: request.dshEnv } : {},
+       // Carry a sandbox policy through verbatim: this executor never
+@@ -186,7 +188,7 @@ export class LocalBashExecutor extends ShellExecutor {
+       argv,
+       cwd: spec.workdir,
+       stdio: {
+-        stdin: spec.stdin !== undefined ? { data: spec.stdin } : 'ignore',
++        stdin: spec.interactive ? 'pipe' : spec.stdin !== undefined ? { data: spec.stdin } : 'ignore',
+         stdout: collect(stdoutMaxBytes),
+         stderr: collect(this.config.maxOutputBytes),
+       },
+@@ -271,6 +273,16 @@ export class LocalBashExecutor extends ShellExecutor {
+     let stdoutOffset = 0
+     let stderrOffset = 0
+     const proc: ShellProcess = {
++      terminate: () => running.terminate(),
++      waitForExit: (signal) => running.waitForExit(signal),
++      writeStdin: async (text: string) => {
++        const input = running.stdin
++        if (input === undefined || input.destroyed || input.writableEnded) throw new Error('process stdin is not writable')
++        await new Promise<void>((resolve, reject) => {
++          input.write(text, 'utf8', error => error ? reject(error) : resolve())
++        })
++      },
++      closeStdin: () => { running.stdin?.end() },
+       status: 'running',
+       exitCode: null,
+       signal: null,
+diff --git a/packages/shell/pwsh-local/README.i18n.yaml b/packages/shell/pwsh-local/README.i18n.yaml
+index 273749380..704135e1b 100644
+--- a/packages/shell/pwsh-local/README.i18n.yaml
++++ b/packages/shell/pwsh-local/README.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write packages/shell/pwsh-local/README.md
+-README.md: 1d6872ec6b342f415b1632f87be5a485c4dfa270
+-README.zh.md: 2594ecc1623fec9ea8022f92d1c38941f643d979
++README.md: b9944cf2e64ded26da1990d84d3d3c601e8ceb72
++README.zh.md: 5d56aadfb3ae028aa21d6fc65f1463fa8e06f792
+diff --git a/packages/shell/pwsh-local/README.md b/packages/shell/pwsh-local/README.md
+index 1d6872ec6..b9944cf2e 100644
+--- a/packages/shell/pwsh-local/README.md
++++ b/packages/shell/pwsh-local/README.md
+@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
+ 
+ `dsh-pwsh-local` is the PowerShell executor: every command runs as a fresh, non-interactive `pwsh -Command` process with no profile files, so no shell state survives between calls. It mirrors `dsh-bash-local`'s semantics call-for-call and adds PowerShell-shaped concerns: executable resolution, UTF-8 output pinning, and the model-friendly terminal environment. Commands run with the harness process's own authority — this executor confines nothing; compose `dsh-pwsh-sandbox` when commands need the sandbox capability. The model-facing `pwsh` tool talks to it once it is mounted.
+ 
++`interactive: true` opens stdin for later UTF-8 writes through the background handle. Closing stdin signals EOF. Managed-range termination and waiting remain available after the command exits.
++
+ ## Table of Contents
+ 
+ - [Use this package](#use-this-package)
+diff --git a/packages/shell/pwsh-local/README.zh.md b/packages/shell/pwsh-local/README.zh.md
+index 2594ecc16..5d56aadfb 100644
+--- a/packages/shell/pwsh-local/README.zh.md
++++ b/packages/shell/pwsh-local/README.zh.md
+@@ -11,6 +11,8 @@ kind: "package-reference"
+ 
+ `dsh-pwsh-local` 是 PowerShell 执行器：每条命令都以全新的非交互 `pwsh -Command` 进程运行，不加载 profile 文件，因此调用之间不会残留任何 shell 状态。它逐调用镜像 `dsh-bash-local` 的语义，并额外负责 PowerShell 层事项：可执行文件解析、UTF-8 输出固定与面向模型的终端环境。命令以 harness 进程自身的权限运行——本执行器不做任何隔离；需要沙箱能力时请组合 `dsh-pwsh-sandbox`。挂载后，面向模型的 `pwsh` 工具会与它对接。
+ 
++`interactive: true` 打开标准输入管道，可通过后台句柄继续写入 UTF-8 文本；关闭管道表示输入结束。命令退出后仍可终止和等待整个受管范围。
++
+ ## 目录
+ 
+ - [使用本包](#use-this-package)
+diff --git a/packages/shell/pwsh-local/src/index.ts b/packages/shell/pwsh-local/src/index.ts
+index 99d7d1564..95085f261 100644
+--- a/packages/shell/pwsh-local/src/index.ts
++++ b/packages/shell/pwsh-local/src/index.ts
+@@ -189,6 +189,7 @@ export class PwshLocalExecutor extends ShellExecutor {
+    * `config.timeoutMs`, capped at `config.maxTimeoutMs`.
+    */
+   resolve(request: ShellExecRequest): ShellExecSpec {
++    if (request.interactive && request.stdin !== undefined) throw new Error('interactive stdin cannot include batch stdin data')
+     const timeoutMs = clampTimeout(
+       request.timeoutMs,
+       this.config.timeoutMs,
+@@ -204,6 +205,7 @@ export class PwshLocalExecutor extends ShellExecutor {
+       stdoutMaxBytes,
+       ...request.signal ? { signal: request.signal } : {},
+       ...request.stdin !== undefined ? { stdin: request.stdin } : {},
++      ...request.interactive !== undefined ? { interactive: request.interactive } : {},
+       ...request.env !== undefined ? { env: request.env } : {},
+       ...request.dshEnv !== undefined ? { dshEnv: request.dshEnv } : {},
+       sandboxPolicy: request.sandboxPolicy,
+@@ -233,7 +235,7 @@ export class PwshLocalExecutor extends ShellExecutor {
+       argv: [...argv],
+       cwd: spec.workdir,
+       stdio: {
+-        stdin: spec.stdin !== undefined ? { data: spec.stdin } : 'ignore',
++        stdin: spec.interactive ? 'pipe' : spec.stdin !== undefined ? { data: spec.stdin } : 'ignore',
+         stdout: collect(stdoutMaxBytes),
+         stderr: collect(this.config.maxOutputBytes),
+       },
+@@ -300,6 +302,16 @@ export class PwshLocalExecutor extends ShellExecutor {
+     let stdoutOffset = 0
+     let stderrOffset = 0
+     const proc: ShellProcess = {
++      terminate: () => running.terminate(),
++      waitForExit: (signal) => running.waitForExit(signal),
++      writeStdin: async (text: string) => {
++        const input = running.stdin
++        if (input === undefined || input.destroyed || input.writableEnded) throw new Error('process stdin is not writable')
++        await new Promise<void>((resolve, reject) => {
++          input.write(text, 'utf8', error => error ? reject(error) : resolve())
++        })
++      },
++      closeStdin: () => { running.stdin?.end() },
+       status: 'running',
+       exitCode: null,
+       signal: null,
+diff --git a/packages/shell/shell/README.i18n.yaml b/packages/shell/shell/README.i18n.yaml
+index 8e2e5f432..9d3d38cc0 100644
+--- a/packages/shell/shell/README.i18n.yaml
++++ b/packages/shell/shell/README.i18n.yaml
+@@ -2,5 +2,5 @@
+ # side as of the last confirmed-consistent state. Both languages carry equal authority;
+ # after editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write packages/shell/shell/README.md
+-README.md: 35daabef167f0d1276382b5b024a610d810488c6
+-README.zh.md: e964c3982ad266f1b3123d839b9b51734c23e67b
++README.md: 59fc9c8ac329e2c17da981a12162a0784f18e3a5
++README.zh.md: e58586ce161b6e34195ae7b2df13469e0fdd600b
+diff --git a/packages/shell/shell/README.md b/packages/shell/shell/README.md
+index 35daabef1..59fc9c8ac 100644
+--- a/packages/shell/shell/README.md
++++ b/packages/shell/shell/README.md
+@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
+ 
+ Use `ctx.shell` to run foreground shell commands with bounded output or start background processes that return a handle immediately. A profile can select local or sandboxed Bash or PowerShell execution without changing callers. Resolve each request before execution to make the working directory, timeout, and output limits explicit. Command completion, nonzero exits, timeouts, and caller aborts return results; only infrastructure failures reject, while the `bash` and `pwsh` tools own model-visible rendering and sandbox guidance.
+ 
++Interactive requests keep a writable stdin pipe and cannot also supply fixed `stdin` data. Supporting process handles expose `writeStdin`, `closeStdin`, `terminate`, and `waitForExit`. `done` reports the command exit; `waitForExit` observes the entire managed range, and `terminate` also stops surviving descendants. Unsupported providers may omit these methods.
++
+ ## Table of Contents
+ 
+ - [Use this package](#use-this-package)
+diff --git a/packages/shell/shell/README.zh.md b/packages/shell/shell/README.zh.md
+index e964c3982..e58586ce1 100644
+--- a/packages/shell/shell/README.zh.md
++++ b/packages/shell/shell/README.zh.md
+@@ -11,6 +11,8 @@ kind: "package-reference"
+ 
+ 使用 `ctx.shell` 运行以有界输出结束的前台 shell 命令，或启动立即返回句柄的后台进程。配置文件可选择本地或沙箱化的 Bash 或 PowerShell 执行方式，而无需更改调用方。执行前解析每个请求，以显式确定工作目录、超时和输出上限。命令完成、非零退出、超时和调用方中止都会作为结果返回；只有基础设施故障才会 reject，而模型可见的渲染与沙箱指引由 `bash` 和 `pwsh` 工具负责。
+ 
++交互请求保留可写的标准输入管道，不能同时指定固定 `stdin` 数据。支持此能力的进程句柄提供 `writeStdin`、`closeStdin`、`terminate` 和 `waitForExit`。`done` 报告命令退出；`waitForExit` 观察整个受管范围，`terminate` 也会停止残留子进程。不支持的提供方可省略这些方法。
++
+ ## 目录
+ 
+ - [使用本包](#use-this-package)
+diff --git a/packages/shell/shell/src/types.ts b/packages/shell/shell/src/types.ts
+index 8a17c3880..ce0bccf8d 100644
+--- a/packages/shell/shell/src/types.ts
++++ b/packages/shell/shell/src/types.ts
+@@ -58,6 +58,8 @@ export interface ShellExecRequest {
+    * (a model that needs stdin uses shell syntax like a heredoc or a pipe).
+    */
+   stdin?: string | undefined
++  /** Keep stdin open for incremental writes; mutually exclusive with stdin data. */
++  interactive?: boolean | undefined
+   /**
+    * Ordinary environment entries for the command, merged after the credential
+    * scrub. Managed facts belong in {@link dshEnv}, which merges after this
+@@ -96,6 +98,8 @@ export interface ShellExecSpec {
+   signal?: AbortSignal | undefined
+   /** Bytes to write to stdin before closing it; absent means no stdin. */
+   stdin?: string | undefined
++  /** Keep stdin open for incremental writes; mutually exclusive with stdin data. */
++  interactive?: boolean | undefined
+   /**
+    * Ordinary environment entries carried through from
+    * {@link ShellExecRequest.env}; {@link dshEnv} still merges after them.
+@@ -159,6 +163,10 @@ export interface ShellProcessRead {
+  * awaits {@link done}; an executor-only reload leaves them running.
+  */
+ export interface ShellProcess {
++  /** Terminate the entire managed range, including descendants after the command exits. */
++  terminate?(): void
++  /** Wait for the backend's managed process range to exit after cancellation. */
++  waitForExit?(signal?: AbortSignal): Promise<boolean>
+   /** Process lifecycle state (settled exactly once). */
+   status: ShellProcessStatus
+   /** Exit code once finished (null = killed by signal / still running). */
+@@ -183,4 +191,8 @@ export interface ShellProcess {
+    * (no-op); idempotent.
+    */
+   kill(): boolean
++  /** Write UTF-8 to a pipe opened with interactive=true; rejects unsupported or closed input. */
++  writeStdin?(text: string): Promise<void>
++  /** Close the interactive input pipe without terminating the process. */
++  closeStdin?(): void
+ }
+diff --git a/scripts/type-equiv.manifest.json b/scripts/type-equiv.manifest.json
+index e7436d98b..928264076 100644
+--- a/scripts/type-equiv.manifest.json
++++ b/scripts/type-equiv.manifest.json
+@@ -2105,6 +2105,21 @@
+       "doc": "packages/client/ui-conversation/README.md",
+       "symbol": "ComposerChainProps",
+       "source": "packages/client/ui-conversation/src/client/contract/slots.ts"
++    },
++    {
++      "doc": "docs/subsystems/llm-streaming.md",
++      "symbol": "AdapterContext",
++      "source": "packages/llm/llm/src/types.ts"
++    },
++    {
++      "doc": "docs/subsystems/llm-streaming.md",
++      "symbol": "NativeContextCapability",
++      "source": "packages/llm/llm/src/types.ts"
++    },
++    {
++      "doc": "docs/subsystems/core.md",
++      "symbol": "AgentContextProvider",
++      "source": "packages/core/agent/src/runtime-types.ts"
+     }
+   ]
+ }
+diff --git a/.agents/notes/implemented/architecture/2026-09-16-step-preparation-and-guarded-execution.i18n.yaml b/.agents/notes/implemented/architecture/2026-09-16-step-preparation-and-guarded-execution.i18n.yaml
+new file mode 100644
+index 000000000..17086688b
+--- /dev/null
++++ b/.agents/notes/implemented/architecture/2026-09-16-step-preparation-and-guarded-execution.i18n.yaml
+@@ -0,0 +1,6 @@
++# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
++# side as of the last confirmed-consistent state. Both languages carry equal authority;
++# after editing either side, bring the other along and re-record with:
++#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-16-step-preparation-and-guarded-execution.md
++2026-09-16-step-preparation-and-guarded-execution.md: 225872298107ed30f6e0db11a08d400c196908d3
++2026-09-16-step-preparation-and-guarded-execution.zh.md: 8970adba7004c3b9960f965f796ac0f0c8f87d87
+diff --git a/.agents/notes/implemented/architecture/2026-09-16-step-preparation-and-guarded-execution.md b/.agents/notes/implemented/architecture/2026-09-16-step-preparation-and-guarded-execution.md
+new file mode 100644
+index 000000000..225872298
+--- /dev/null
++++ b/.agents/notes/implemented/architecture/2026-09-16-step-preparation-and-guarded-execution.md
+@@ -0,0 +1,29 @@
++# Agent Note: Step preparation and guarded execution
++
++Status: implemented
++
++English | [中文](2026-09-16-step-preparation-and-guarded-execution.zh.md)
++
++## Problem
++
++An external compatibility plugin needs to change an agent's tools when its selected provider changes. Prompt providers must see that selection before evaluating their tool schemas. File moves require guarded removal, and interactive command handles need to preserve subprocess ownership during cancellation.
++
++## Decision
++
++System-prompt assembly resolves its context and then awaits scoped preparation before reading providers. The resolved context and route are shallow-frozen; resolvers cannot replace scope or cancellation. Model selection captures its route at resolution, while previews do not advance the executing step's selection. The agent loop still owns logging and freezes the model request through its existing admission path.
++
++Filesystem providers explicitly advertise guarded single-file removal. The local backend checks version and regular-file type under its existing target lock; the sandbox backend checks the current path before delegating. Shell requests can open stdin instead of supplying fixed input. Background handles expose pipe writes and closure plus termination and waiting for the provider's managed range, including descendants after command exit.
++
++## Alternatives considered
++
++**Rewrite the frozen LLM request in a plugin.** This breaks reconstruction from logged history and places tool selection after prompt evaluation. Scoped preparation keeps compatibility policy outside the agent loop and runs before assembly.
++
++**Forward hidden tools through the registry.** Hidden tools are intentionally unavailable to execution. Compatibility tools use the calling agent's filesystem and shell services instead.
++
++**Run separate filesystem or subprocess implementations inside the plugin.** This duplicates sandbox enforcement and execution-world ownership. The generic services expose the missing operations without embedding Codex-specific policy in the host.
++
++## Consequences
++
++External plugins can change scoped registrations at step preparation. They must dispose those registrations, stop their owned commands, and distinguish previews from execution. Guarded removal is not a multi-file transaction. Interactive stdin is a pipe, not a pseudo-terminal; providers that do not implement it remain unsupported for interactive tools.
++
++The focused preparation, route-selection, guarded-removal and sandbox-removal tests pass on Windows. Existing broader filesystem tests require symbolic-link privileges; the broader PowerShell suite also has unresolved short-deadline failures in this environment. This change supplies no native Responses transport or multi-projection compaction protocol.
+diff --git a/.agents/notes/implemented/architecture/2026-09-16-step-preparation-and-guarded-execution.zh.md b/.agents/notes/implemented/architecture/2026-09-16-step-preparation-and-guarded-execution.zh.md
+new file mode 100644
+index 000000000..8970adba7
+--- /dev/null
++++ b/.agents/notes/implemented/architecture/2026-09-16-step-preparation-and-guarded-execution.zh.md
+@@ -0,0 +1,29 @@
++# Agent Note: 步骤准备与受保护执行
++
++Status: implemented
++
++[English](2026-09-16-step-preparation-and-guarded-execution.md) | 中文
++
++## 问题
++
++外部兼容插件需要在所选提供商变化时调整 agent（智能体）的工具。提示词提供方必须在读取工具 schema 前看到这一选择。文件移动需要带版本保护的删除，交互命令句柄则需要在取消时保留子进程所有权。
++
++## 决策
++
++系统提示词组装先解析上下文，再等待作用域准备，随后读取提供方。所得上下文与路由经过浅冻结；解析方不能替换作用域或取消信号。模型选择在解析时捕获路由，预览不推进执行中步骤的选择。Agent loop（智能体循环）仍通过既有准入路径负责日志与模型请求冻结。
++
++文件系统提供方显式声明带版本保护的单文件删除能力。本地后端在既有目标锁内检查版本和普通文件类型；沙箱后端在委托之前检查当前路径。Shell 请求可打开标准输入，而不是提供固定输入。后台句柄提供管道写入与关闭，以及提供方受管范围的终止与等待，包括命令退出后残留的子进程。
++
++## 考虑过的替代方案
++
++**由插件改写冻结后的 LLM 请求。** 这会破坏从已记录历史还原请求的约束，也使工具选择晚于提示词读取。作用域准备将兼容策略留在 agent loop 之外，并在组装前执行。
++
++**通过注册表转发隐藏工具。** 隐藏工具按约定不可执行。兼容工具改用调用方 agent 的文件系统和 shell 服务。
++
++**在插件内另写文件系统或子进程实现。** 这会重复沙箱执行和执行环境所有权逻辑。通用服务提供缺失操作，不把 Codex 专有策略写入宿主。
++
++## 影响
++
++外部插件可在步骤准备时改变作用域注册，必须撤销这些注册、停止所拥有的命令，并区分预览和执行。受保护删除不是跨文件事务。交互标准输入是管道，不是伪终端；没有实现该能力的提供方仍不支持交互工具。
++
++聚焦的准备阶段、路由选择、受保护删除及沙箱删除测试在 Windows 上通过。既有更广文件系统测试需要符号链接权限；更广 PowerShell 套件在本环境中也有尚未解决的短时限失败。本变更不提供原生 Responses 传输或多投影压缩协议。
+diff --git a/.agents/notes/implemented/architecture/2026-09-17-durable-context-selection.i18n.yaml b/.agents/notes/implemented/architecture/2026-09-17-durable-context-selection.i18n.yaml
+new file mode 100644
+index 000000000..e4ea89cb8
+--- /dev/null
++++ b/.agents/notes/implemented/architecture/2026-09-17-durable-context-selection.i18n.yaml
+@@ -0,0 +1,6 @@
++# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
++# side as of the last confirmed-consistent state. Both languages carry equal authority;
++# after editing either side, bring the other along and re-record with:
++#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-durable-context-selection.md
++2026-09-17-durable-context-selection.md: ce5cbd498b3003d03e8b48c553487a6ce5000f2e
++2026-09-17-durable-context-selection.zh.md: d67580ecfe6471e85d7d8f014221b4155f25d184
+diff --git a/.agents/notes/implemented/architecture/2026-09-17-durable-context-selection.md b/.agents/notes/implemented/architecture/2026-09-17-durable-context-selection.md
+new file mode 100644
+index 000000000..ce5cbd498
+--- /dev/null
++++ b/.agents/notes/implemented/architecture/2026-09-17-durable-context-selection.md
+@@ -0,0 +1,27 @@
++# Agent Note: Durable context selection
++
++Status: implemented
++
++English | [中文](2026-09-17-durable-context-selection.zh.md)
++
++## Problem
++
++Provider-native encrypted context cannot be interpreted by unrelated models. Replacing the shared conversation surface with one provider's checkpoint destroys the input needed for a later route switch. Model requests must remain reconstructable from the session log.
++
++## Decision
++
++An effect-owned agent context provider selects messages after admission and before request freeze. The loop logs the selected projection and requires persistence before dispatch, then rechecks cancellation, ownership and source history. Ordinary requests retain their surface derivation; removing the owner logs a projection reset. Automatic basic compaction defers to an active owner. Manual compaction retains its explicit surface behavior.
++
++The session log stores auxiliary compaction input and completed output, complete checkpoint candidates, commit references and request projections as additive required event types. A selector publishes a commit only after candidate durability. The loop persists the commit together with its request projection before model dispatch. An uncommitted candidate is never selected. A later dispatch failure does not invalidate a completed checkpoint. Original surface history remains available independently of both native and portable checkpoints.
++
++Prepared adapters expose versioned native encoding, counting and compaction operations. A native prefix includes format and compatibility scope, and the LLM runtime rejects mismatches before adapter dispatch. Counting opaque data is the adapter's responsibility; its serialized byte length is not a token budget. The plugin chooses independent per-route policies and budgets without changing frozen requests.
++
++## Alternatives considered
++
++**Replace the original surface with an opaque checkpoint.** Foreign models cannot reconstruct the replaced conversation. Independent log-only checkpoints preserve both route-specific state and original messages.
++
++**Rewrite a request in stream middleware.** The request would diverge from the logged selection. Selection belongs before the loop's durable freeze boundary.
++
++## Consequences
++
++Checkpoint selection requires a persistence listener and records full selected windows, increasing log size. Old readers that do not know these required events cannot safely resume the session; additive event vocabulary does not provide downgrade support. Native counting and compaction availability are explicit adapter capabilities, and their absence fails selection without deleting history.
+diff --git a/.agents/notes/implemented/architecture/2026-09-17-durable-context-selection.zh.md b/.agents/notes/implemented/architecture/2026-09-17-durable-context-selection.zh.md
+new file mode 100644
+index 000000000..d67580ecf
+--- /dev/null
++++ b/.agents/notes/implemented/architecture/2026-09-17-durable-context-selection.zh.md
+@@ -0,0 +1,27 @@
++# Agent Note: 持久化上下文选择
++
++Status: implemented
++
++[English](2026-09-17-durable-context-selection.md) | 中文
++
++## 问题
++
++提供商原生加密上下文不能由其他模型解释。把共享会话 surface 替换成某个提供商的检查点，会丢掉后续切换路线所需的输入。模型请求必须能够从会话日志重建。
++
++## 决策
++
++由可撤销 effect 持有的 agent 上下文提供者，在输入接纳后、请求冻结前选择消息。循环记录所选投影，要求持久化成功后才发送，并再次检查取消、所有权及源历史。普通请求保留 surface 派生；移除所有者时记录投影重置。基础自动压缩让出处理权给活动所有者。手动压缩保留其显式改写 surface 的行为。
++
++会话日志通过新增必读事件，保存辅助压缩输入与成功输出、完整检查点候选、提交引用及请求投影。选择器仅在候选持久化后发布提交。循环在发送模型请求前，将提交与请求投影一起持久化。未提交候选永不选用。后续请求发送失败不使已经完成的检查点失效。原始 surface 历史独立于原生及通用检查点，仍然可读。
++
++准备好的适配器提供带版本的原生编码、计数及压缩操作。原生前缀包含格式与兼容范围；LLM 运行时在适配器收到请求前拒绝不匹配前缀。不透明内容的计数属于适配器职责，序列化字节长度不能充当 token 预算。插件选择各路线独立的策略与预算，不修改已冻结请求。
++
++## 考虑过的替代方案
++
++**用不透明检查点替换原始 surface。** 外部模型无法重建被替换的对话。独立的仅日志检查点保留路线专用状态与原始消息。
++
++**在流中间件改写请求。** 请求会偏离已记录的选择。选择必须发生在循环的持久化冻结边界之前。
++
++## 后果
++
++检查点选择要求持久化监听器，并记录完整所选窗口，因此日志会增大。不认识这些必读事件的旧读者无法安全恢复会话；新增事件词汇不提供降级支持。原生计数和压缩是明确的适配器能力；缺失时选择失败，历史不会删除。
+diff --git a/packages/core/session/tests/context-projection.spec.ts b/packages/core/session/tests/context-projection.spec.ts
+new file mode 100644
+index 000000000..f0c39d66a
+--- /dev/null
++++ b/packages/core/session/tests/context-projection.spec.ts
+@@ -0,0 +1,27 @@
++import { expect, it } from 'vitest'
++import { createUserMessage } from '@deepseek-ai/dsh-llm'
++import { Session, SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
++
++it('replays request selections separately from the original surface and restores it on reset', () => {
++  const session = Session.create(SessionId('projection'))
++  const original = createUserMessage({ content: [{ type: 'text', text: 'original' }], source: { kind: 'user' } })
++  const summary = createUserMessage({ content: [{ type: 'text', text: 'summary' }], source: { kind: 'user' } })
++  session.append('user/message', original, { surfaceOp: 'append' })
++  session.append('request/projection', { messages: [summary], adapterContext: { format: 'test', scope: 'origin', input: [] } })
++  const restored = Session.create(SessionId('restored'), JSON.parse(JSON.stringify(session.snapshotEvents())))
++  expect(restored.deriveMessages()).toEqual([original])
++  expect(restored.deriveRequestMessages()).toEqual([summary])
++  expect(restored.requestProjection()?.adapterContext?.scope).toBe('origin')
++  restored.append('request/projection', { messages: null })
++  expect(restored.deriveRequestMessages()).toEqual([original])
++})
++
++it.each([
++  ['context/checkpoint', { key: '', state: {} }],
++  ['context/checkpoint-commit', { checkpoint: -1 }],
++  ['context/operation', { kind: 'unknown', request: {} }],
++  ['context/operation-result', { operation: 1 }],
++  ['request/projection', { messages: null, adapterContext: { format: 'f', scope: 's', input: [] } }],
++])('rejects malformed %s events during adoption', (type, data) => {
++  expect(() => Session.create(SessionId('bad'), [{ type, data, seq: 0, time: 1 } as SessionEvent])).toThrow()
++})
+diff --git a/packages/core/system-prompt/tests/preparation.spec.ts b/packages/core/system-prompt/tests/preparation.spec.ts
+new file mode 100644
+index 000000000..822cbd13c
+--- /dev/null
++++ b/packages/core/system-prompt/tests/preparation.spec.ts
+@@ -0,0 +1,33 @@
++import { Context } from '@deepseek-ai/cordis'
++import { expect, it } from 'vitest'
++import SystemPrompt from '../src/index.ts'
++
++it('resolves the route and prepares contributions before evaluating providers', async () => {
++  const ctx = new Context()
++  await ctx.plugin(SystemPrompt)
++  try {
++    ctx.on('system-prompt/resolve-context', async (_context, next) => ({ ...await next(), route: { provider: 'p', model: 'm' } }))
++    ctx.on('system-prompt/prepare', async context => {
++      expect(Object.isFrozen(context.route)).toBe(true)
++      ctx.systemPrompt.section({ name: 'prepared', order: 0, text: () => context.route!.model! })
++    })
++    const result = await ctx.systemPrompt.assemble()
++    expect(result.sections).toContainEqual({ name: 'prepared', text: 'm' })
++  } finally { await ctx.fiber.dispose() }
++})
++
++it('rejects a replaced scope and an aborted preparation before reading providers', async () => {
++  const ctx = new Context()
++  await ctx.plugin(SystemPrompt)
++  try {
++    const remove = ctx.on('system-prompt/resolve-context', async (_context, next) => ({ ...await next(), scope: {} }))
++    await expect(ctx.systemPrompt.assemble()).rejects.toThrow('cannot replace scope')
++    remove()
++    const controller = new AbortController()
++    let read = false
++    ctx.systemPrompt.section({ name: 'unreached', order: 0, text: () => { read = true; return 'no' } })
++    ctx.on('system-prompt/prepare', async () => { controller.abort() })
++    await expect(ctx.systemPrompt.assemble({ signal: controller.signal })).rejects.toThrow()
++    expect(read).toBe(false)
++  } finally { await ctx.fiber.dispose() }
++})
+diff --git a/packages/fs/fs-local/tests/remove-file.spec.ts b/packages/fs/fs-local/tests/remove-file.spec.ts
+new file mode 100644
+index 000000000..3a76e9689
+--- /dev/null
++++ b/packages/fs/fs-local/tests/remove-file.spec.ts
+@@ -0,0 +1,27 @@
++import { Context } from '@deepseek-ai/cordis'
++import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
++import { tmpdir } from 'node:os'
++import { join } from 'node:path'
++import { expect, it } from 'vitest'
++import LocalFileSystem from '../src/index.ts'
++
++it('guards regular-file deletion by version and cancellation without recursive removal', async () => {
++  const root = await mkdtemp(join(tmpdir(), 'dsh-remove-file-'))
++  const ctx = new Context()
++  await ctx.plugin(LocalFileSystem, { cwd: root })
++  try {
++    await writeFile(join(root, 'a'), 'before')
++    const target = await ctx.fs.resolve('a')
++    const before = (await ctx.fs.stat(target))!
++    await writeFile(join(root, 'a'), 'changed content')
++    await expect(ctx.fs.removeFile(target, before)).rejects.toMatchObject({ code: 'FS_STALE_VERSION' })
++    const current = (await ctx.fs.stat(target))!
++    await expect(ctx.fs.removeFile(target, current, AbortSignal.abort())).rejects.toThrow()
++    expect(await readFile(join(root, 'a'), 'utf8')).toBe('changed content')
++    await ctx.fs.removeFile(target, current)
++    expect(await ctx.fs.stat(target)).toBeUndefined()
++    await mkdir(join(root, 'dir'))
++    const directory = await ctx.fs.resolve('dir')
++    await expect(ctx.fs.removeFile(directory, (await ctx.fs.stat(directory))!)).rejects.toMatchObject({ code: 'FS_NOT_REGULAR_FILE' })
++  } finally { await ctx.fiber.dispose(); await rm(root, { recursive: true, force: true }) }
++})

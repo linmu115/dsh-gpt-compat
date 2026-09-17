@@ -1,0 +1,357 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "GPT 兼容插件 · 计划职责与边界",
+    "subtitle": "真实 CPA 工具、v2 原生压缩与进程恢复通过；估计预算，产品安装待验收。",
+    "locale": "zh-CN",
+    "quality_profile": "standard",
+    "views": [
+      {
+        "id": "activation",
+        "label": "绑定与工具",
+        "focus": [
+          "selection",
+          "binding",
+          "tools",
+          "services"
+        ],
+        "note": "会话内启停并保留基础服务，其他会话不受影响。"
+      },
+      {
+        "id": "context",
+        "label": "两种上下文",
+        "focus": [
+          "history",
+          "context",
+          "native",
+          "portable"
+        ],
+        "note": "同一原始历史，不同检查点和独立压缩边界。"
+      },
+      {
+        "id": "wire",
+        "label": "提供商请求",
+        "focus": [
+          "binding",
+          "protocol",
+          "context",
+          "cpa",
+          "ordinary"
+        ],
+        "note": "原生密文与通用摘要不会发给不匹配的模型。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "selection",
+      "type": "frontend",
+      "label": "模型与会话选择",
+      "sublabel": "宿主提供当前模型 / 作用域",
+      "pos": [
+        65.0,
+        117.0
+      ],
+      "size": [
+        182.0,
+        71.5
+      ]
+    },
+    {
+      "id": "services",
+      "type": "security",
+      "label": "文件 / 进程 / 权限",
+      "sublabel": "保留底层服务和正式执行链",
+      "pos": [
+        65.0,
+        351.0
+      ],
+      "size": [
+        182.0,
+        71.5
+      ]
+    },
+    {
+      "id": "history",
+      "type": "database",
+      "label": "完整原始历史",
+      "sublabel": "持久化 · 专属 Maintenance Adapter",
+      "pos": [
+        65.0,
+        585.0
+      ],
+      "size": [
+        182.0,
+        71.5
+      ]
+    },
+    {
+      "id": "binding",
+      "type": "backend",
+      "label": "绑定与激活快照",
+      "sublabel": "按会话 / 安全步骤切换",
+      "pos": [
+        422.5,
+        117.0
+      ],
+      "size": [
+        182.0,
+        71.5
+      ]
+    },
+    {
+      "id": "tools",
+      "type": "backend",
+      "label": "兼容工具实现",
+      "sublabel": "补丁 / 命令 / 输出 / 取消",
+      "pos": [
+        422.5,
+        351.0
+      ],
+      "size": [
+        182.0,
+        71.5
+      ]
+    },
+    {
+      "id": "protocol",
+      "type": "backend",
+      "label": "协议与历史重放",
+      "sublabel": "声明 / 状态字段 / 结果编码",
+      "pos": [
+        747.5,
+        117.0
+      ],
+      "size": [
+        182.0,
+        71.5
+      ]
+    },
+    {
+      "id": "context",
+      "type": "backend",
+      "label": "上下文选择与预算",
+      "sublabel": "按当前路线重建最新进度",
+      "pos": [
+        747.5,
+        351.0
+      ],
+      "size": [
+        182.0,
+        71.5
+      ]
+    },
+    {
+      "id": "native",
+      "type": "database",
+      "label": "原生压缩路径",
+      "sublabel": "完整加密窗口 / 兼容范围",
+      "pos": [
+        422.5,
+        585.0
+      ],
+      "size": [
+        182.0,
+        71.5
+      ]
+    },
+    {
+      "id": "portable",
+      "type": "database",
+      "label": "通用压缩路径",
+      "sublabel": "可读摘要 / 独立触发",
+      "pos": [
+        747.5,
+        585.0
+      ],
+      "size": [
+        182.0,
+        71.5
+      ]
+    },
+    {
+      "id": "cpa",
+      "type": "external",
+      "label": "CPA → Codex 后端",
+      "sublabel": "外部 API / 真实部署待验证",
+      "pos": [
+        1105.0,
+        117.0
+      ],
+      "size": [
+        182.0,
+        71.5
+      ]
+    },
+    {
+      "id": "ordinary",
+      "type": "external",
+      "label": "普通 DSH 提供商",
+      "sublabel": "其他模型 / 通用上下文",
+      "pos": [
+        1105.0,
+        351.0
+      ],
+      "size": [
+        182.0,
+        71.5
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "DSH 宿主 · 已有基础",
+      "wraps": [
+        "selection",
+        "services",
+        "history"
+      ],
+      "pad": 26
+    },
+    {
+      "kind": "region",
+      "label": "兼容插件 · 开发版",
+      "wraps": [
+        "binding",
+        "tools",
+        "protocol",
+        "context",
+        "native",
+        "portable"
+      ],
+      "pad": 26
+    }
+  ],
+  "connections": [
+    {
+      "id": "select-bind",
+      "from": "selection",
+      "to": "binding",
+      "label": "模型选择",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "bind-protocol",
+      "from": "binding",
+      "to": "protocol",
+      "label": "固定请求配置",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "bind-tools",
+      "from": "binding",
+      "to": "tools",
+      "label": "安装 / 撤销",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        513.5,
+        269.8
+      ]
+    },
+    {
+      "id": "tools-services",
+      "from": "tools",
+      "to": "services",
+      "label": "基础服务与权限",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "protocol-cpa",
+      "from": "protocol",
+      "to": "cpa",
+      "label": "原生请求与压缩",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "context-protocol",
+      "from": "context",
+      "to": "protocol",
+      "label": "原生上下文",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelAt": [
+        838.5,
+        269.8
+      ]
+    },
+    {
+      "id": "context-ordinary",
+      "from": "context",
+      "to": "ordinary",
+      "label": "通用上下文",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "history-context",
+      "from": "history",
+      "to": "context",
+      "label": "原始记录与新增历史",
+      "fromSide": "top",
+      "toSide": "left",
+      "via": [
+        [
+          156.0,
+          500.5
+        ],
+        [
+          669.5,
+          500.5
+        ],
+        [
+          669.5,
+          386.75
+        ]
+      ],
+      "labelAt": [
+        403.0,
+        500.5
+      ]
+    },
+    {
+      "id": "context-native",
+      "from": "context",
+      "to": "native",
+      "label": "选择原生检查点",
+      "fromSide": "left",
+      "toSide": "top",
+      "via": [
+        [
+          637.0,
+          386.75
+        ],
+        [
+          637.0,
+          526.5
+        ],
+        [
+          513.5,
+          526.5
+        ]
+      ],
+      "labelAt": [
+        592,
+        462
+      ]
+    },
+    {
+      "id": "context-portable",
+      "from": "context",
+      "to": "portable",
+      "label": "选择通用检查点",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        838.5,
+        503.8
+      ]
+    }
+  ]
+}
