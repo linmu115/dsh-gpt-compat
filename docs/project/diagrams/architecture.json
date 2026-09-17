@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "GPT 兼容插件 · 计划职责与边界",
+    "title": "GPT 兼容插件 · 职责与边界",
     "subtitle": "真实 CPA 工具、v2 原生压缩与进程恢复通过；估计预算，产品安装待验收。",
     "locale": "zh-CN",
     "quality_profile": "standard",
