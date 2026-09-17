@@ -10,6 +10,7 @@ export default defineConfig(async () => {
   return {
     plugins: [standardDecoratorPlugin(), tsconfigPaths({ projects: ['./tsconfig.test.json', resolve(host, 'tsconfig.base.json')] })],
     resolve: { alias: {
+      '@deepseek-ai/dsh-client-ui-primitives': resolve(host, 'packages/client/ui-primitives/src/index.ts'),
       react: dependencyDirectory('react'),
       'react-dom': dependencyDirectory('react-dom'),
       '@testing-library/react': resolve(dependencyDirectory('@testing-library/react'), 'dist/index.js'),

@@ -4,6 +4,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { Bindings, type BindingSettings, type Face } from './Bindings.tsx'
+import styles from './bindings.css?inline'
 
 const en = {
   title: 'GPT compatibility', description: 'Enable compatible editing and command tools for the selected provider and models. Each conversation switches at its next step.',
@@ -24,6 +25,13 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 export const inject = ['slots', 'locale', 'settingsScope']
 export function apply(ctx: Context): void {
+  ctx.effect(() => {
+    const style = document.createElement('style')
+    style.dataset.pluginCss = 'dsh-gpt-compat/bindings'
+    style.textContent = styles
+    document.head.appendChild(style)
+    return () => style.remove()
+  }, 'GPT compatibility settings styles')
   ctx.effect(() => ctx.locale.register('gpt.compat', { en, zh }), 'GPT compatibility copy')
   const scope = ctx.settingsScope.bind<BindingSettings>({ namespace: 'gpt-compat' })
   ctx.slots.inject('settings.models.footer', () => ctx.slots.register({

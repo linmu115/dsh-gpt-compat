@@ -2,11 +2,16 @@ import { build } from 'tsdown'
 import { readFile } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 import assert from 'node:assert/strict'
+import { resolve, dirname } from 'node:path'
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
 await build({ entry: { index: 'src/index.ts', responses: 'src/responses.ts' }, outDir: 'lib', format: 'esm', dts: false, deps: { neverBundle: Object.keys(pkg.peerDependencies) }, clean: false })
 // DSH concatenates plugin assets into a classic script. Register a closure
 // factory so externals come from its shared module table, not ESM imports.
 await build({ entry: { client: 'src/client/index.ts' }, outDir: 'lib', platform: 'browser', format: 'cjs', dts: false,
+  plugins: [{ name: 'scoped-inline-css',
+    resolveId(id, importer) { if (id.endsWith('.css?inline')) return '\0gpt-css:' + resolve(dirname(importer), id.slice(0, -7)) + '.js' },
+    async load(id) { if (id.startsWith('\0gpt-css:')) { const path = id.slice(9, -3); this.addWatchFile(path); return 'export default ' + JSON.stringify(await readFile(path, 'utf8')) } },
+  }],
   deps: { neverBundle: [/^@deepseek-ai\//, /^react(?:\/|$)/] }, clean: false,
   outputOptions: {
     entryFileNames: 'client.js',
@@ -24,7 +29,7 @@ runInNewContext(await readFile(new URL('../lib/client.js', import.meta.url), 'ut
 assert.equal(registrations.length, 1)
 assert.equal(registrations[0].id, pkg.name)
 const client = registrations[0].factory(specifier => {
-  assert.ok(['react', 'react/jsx-runtime'].includes(specifier), `Undeclared browser external: ${specifier}`)
+  assert.ok(['react', 'react/jsx-runtime', '@deepseek-ai/dsh-client-ui-primitives'].includes(specifier), `Undeclared browser external: ${specifier}`)
   return {}
 })
 assert.equal(typeof client.apply, 'function')
