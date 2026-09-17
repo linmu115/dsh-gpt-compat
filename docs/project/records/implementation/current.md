@@ -2,7 +2,7 @@
 {
   "id": "IMP-current",
   "kind": "implementation",
-  "title": "副本接入与独立 Maintenance Adapter",
+  "title": "副本接入与Maintenance 扩展数据 Adapter",
   "status": "current",
   "summary": "0.5.0-dev.3 已完成副本真实调用，推理强度配置已补齐；Maintenance 独立适配器源码完成。",
   "progress": "in_progress",
@@ -20,7 +20,7 @@
 }
 ---
 
-# 副本接入与独立 Maintenance Adapter
+# 副本接入与Maintenance 扩展数据 Adapter
 
 开发包 0.5.0-dev.3。需要基于 3a7508d20 的宿主补丁；独立 0.1.5-rc.2 副本已安装，主实例未切换。此前真实 CPA 已验证原生压缩与跨进程接续；副本进一步完成 apply_patch、exec_command、write_stdin 真实调用，4 个模型步骤完成。证据汇总见 docs/qualification.md。
 
@@ -28,6 +28,6 @@
 
 0.5.0-dev.2 修复经典脚本 ModuleLoader 注册，dev.3 补齐模型推理配置。当前源码 51 项离线测试通过，1 项可选 live 测试跳过，类型检查通过；真实账号结果属于之前明确记录的验收。
 
-Maintenance 之前用全局依赖替换重新打包以完成联调；现已构建独立 dsh-gpt-compat Adapter，按格式身份处理插件事件，见 [[INT-maintenance]]。独立 Adapter 的源码、合成恢复与路由验证已完成，运行副本尚未换成这次的新引擎。
+Maintenance 之前用全局依赖替换重新打包以完成联调；现已构建gpt-compat 扩展数据 Adapter，按插件所有权处理事件，见 [[INT-maintenance]]。扩展数据 Adapter 已在副本运行：Maintenance Engine rc2.30 / 插件 rc2.24，宿主 dsh-0.1.5，GPT 面板包含 1 个会话索引。原验收事件前缀和其它插件文件保持一致。
 
-尚待：独立 Adapter 正式部署、正常大容量长任务、压缩辅助调用用量汇总、全新机器安装和 Harbor / Inspect AI 对照评估。SSE 仍缓冲终态；进程句柄不跨重启恢复；不声称性能、智力、时间或成本收益。
+尚待：正常大容量长任务、压缩辅助调用用量汇总、全新机器安装和 Harbor / Inspect AI 对照评估。SSE 仍缓冲终态；进程句柄不跨重启恢复；不声称性能、智力、时间或成本收益。

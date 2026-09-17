@@ -2,7 +2,7 @@
 
 让 GPT 在 DSH 中使用熟悉的工具与协议，同时保留 DSH 的会话、外部环境、权限和任务管理。选择绑定提供商时自动启用，切换其他提供商时恢复普通 DSH 路线。
 
-**当前阶段：0.5.0-dev.3 副本接入与真实调用完成；独立 Maintenance Adapter 源码已接入。** 推理强度由模型能力声明。新 Adapter 部署、长任务与成本评估仍待验收，主实例未切换。
+**当前阶段：0.5.0-dev.3 副本接入与真实调用完成；Maintenance 扩展数据 Adapter 已部署验收。** 推理强度由模型能力声明。长任务与成本评估仍待验收，主实例未切换。
 
 ## 已经确定的行为
 
@@ -22,7 +22,7 @@
 | [协议与历史重放](records/modules/provider/overview.md) | API 声明、调用结果、特殊状态、CPA 原生压缩调用 | [上下文交付](records/interfaces/context.md) |
 | [两版压缩与切换接续](records/modules/context/overview.md) | 从同一历史构造两种上下文，分别计量、保存和接续 | [检查点与历史边界](records/interfaces/context.md) |
 
-绑定、工具、原生 Responses 协议、两版压缩控制与检查点接续已有代码；新版 CPA 原生压缩及恢复已经验收，副本 profile 已接入，独立 Maintenance Adapter 的正式部署仍待验证。整体组织图展示其边界；功能路径图展示一次请求的两种路由与失败保留行为。
+绑定、工具、原生 Responses 协议、两版压缩控制与检查点接续已有代码；新版 CPA 原生压缩及恢复已经验收，副本 profile 已接入，Maintenance 扩展数据 Adapter 已在副本完成恢复和目录验收。整体组织图展示其边界；功能路径图展示一次请求的两种路由与失败保留行为。
 
 ## 从哪里继续
 
@@ -37,4 +37,4 @@
 
 本项目属于 DSH 系统地图的第六个独立维护对象。现成压缩方案、CPA 证据和 Harbor / Inspect AI 评估方向均保留为参考，不能据此宣称已经移植、安装或取得性能收益。
 
-- [[INT-maintenance|Maintenance 接入]]：扩展会话格式先构建独立 Adapter，再做实例绑定。
+- [[INT-maintenance|Maintenance 接入]]：插件会话字段先构建扩展数据 Adapter，宿主身份保持不变。

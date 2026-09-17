@@ -56,4 +56,4 @@ node scripts/build.mjs
 
 ## Session Maintenance 接入
 
-插件扩展会话事件，因此必须使用独立 `dsh-gpt-compat` Harness Adapter，见 [接入合同](docs/maintenance.md)。它由 Session Maintenance 仓库提供；不要全局替换普通 Adapter 的读取依赖。当前副本的早期联调曾采用重新打包方案，新独立 Adapter 已完成源码与合成测试，其运行部署仍需正式升级与重新绑定。
+插件扩展会话事件，由独立扩展数据 Adapter 管理，见 [接入合同](docs/maintenance.md)。Harness 身份仍为 dsh-0.1.5；GPT 解析器与宿主 codec 组合，原始重放数据完整保存，扩展数据栏目显示按会话组织的只读摘要。

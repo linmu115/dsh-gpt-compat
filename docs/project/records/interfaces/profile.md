@@ -35,4 +35,4 @@
 
 接口变更影响工具可见性、已有进程句柄与历史结果解释，因此要核对三个消费者边界。配置 schema 与匹配规则见 src/config.ts 的 Config、matches、validateConfig；每会话启停见 src/index.ts 的 apply；模型连接快照由 src/responses.ts 的 prepare 固定。已有宿主事件不能被旁路改写。
 
-工具作用域、选择冻结和原生 Responses 请求/返回协议均已实现，副本完成真实工具调用；独立 Maintenance Adapter 的部署另行验收。具体边界与证据见 [[IMP-current|当前实现]]、[[VER-tools|工具首版验证]]。
+工具作用域、选择冻结和原生 Responses 请求/返回协议均已实现，副本完成真实工具调用；Maintenance 扩展数据 Adapter 已在副本验收。具体边界与证据见 [[IMP-current|当前实现]]、[[VER-tools|工具首版验证]]。
