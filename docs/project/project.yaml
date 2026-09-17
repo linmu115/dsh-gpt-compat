@@ -12,7 +12,8 @@
       "node_records": {
         "selection": [
           "INT-dsh",
-          "IF-profile"
+          "IF-profile",
+          "VER-model-catalog"
         ],
         "services": [
           "INT-dsh",
@@ -30,7 +31,8 @@
           "MOD-tools"
         ],
         "protocol": [
-          "MOD-provider"
+          "MOD-provider",
+          "VER-model-catalog"
         ],
         "context": [
           "MOD-context",
@@ -56,7 +58,8 @@
           "VER-accounts"
         ],
         "account-bridge": [
-          "MOD-accounts"
+          "MOD-accounts",
+          "VER-model-catalog"
         ]
       }
     },

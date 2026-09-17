@@ -4,7 +4,7 @@
   "kind": "interface",
   "title": "DSH 宿主接入与待补能力",
   "status": "current",
-  "summary": "复用当前已核对的作用域、模型选择和重放基础；双路径投影及完整协议仍待实现。",
+  "summary": "副本已接入路由准备、作用域工具、原生重放、双检查点与请求投影；普通 RC2 仍需对应宿主扩展。",
   "progress": "in_progress",
   "sources": [
     {

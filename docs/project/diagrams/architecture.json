@@ -3,7 +3,7 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "GPT 兼容插件 · 职责与边界",
-    "subtitle": "副本工具与原生压缩已验收；可选 CPA 账号模块固定单账号，失败不轮换。",
+    "subtitle": "自动发现 GPT 会话模型；副本工具与原生压缩已验收，固定账号失败不轮换。",
     "locale": "zh-CN",
     "quality_profile": "standard",
     "views": [
@@ -100,8 +100,8 @@
     {
       "id": "binding",
       "type": "backend",
-      "label": "绑定与激活快照",
-      "sublabel": "按会话 / 安全步骤切换",
+      "label": "自动兼容与步骤快照",
+      "sublabel": "本插件提供商 / 会话独立",
       "pos": [
         422.5,
         117
@@ -212,8 +212,8 @@
     {
       "id": "account-ui",
       "type": "frontend",
-      "label": "CPA 账号设置",
-      "sublabel": "查看额度 / 具名确认 / 登录",
+      "label": "GPT 设置与账号",
+      "sublabel": "只读模型 / 额度 / 账号管理",
       "pos": [
         1440,
         351
@@ -226,8 +226,8 @@
     {
       "id": "account-bridge",
       "type": "backend",
-      "label": "可选账号模块",
-      "sublabel": "DSH 认证 / 管理凭据 / 修订",
+      "label": "账号与模型发现",
+      "sublabel": "固定选择 / 目录 / 能力资料",
       "pos": [
         1440,
         117
