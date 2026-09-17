@@ -1,1 +1,3 @@
 host-patches/*.patch -whitespace
+# Preserve the bytes used by development-history ledger fingerprints on Windows.
+docs/project/history/**/*.jsonl text eol=lf
