@@ -1,6 +1,8 @@
 /** Opt-in Codex-style budget estimate. This is neither a tokenizer nor billable usage. */
 import { LlmError } from '@deepseek-ai/dsh-llm'
 import { record, type Item } from './responses-wire.ts'
+import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
+import { mapImages, imageTokens } from './responses-images.ts'
 
 // Reference: openai/codex 787823cf, core/src/context_manager/history.rs.
 // Encrypted reasoning/compaction framing is estimated there as base64 bytes minus 650.
@@ -13,8 +15,12 @@ export function estimateNativeTokens(body: Item, multiplier: number): number {
     opaqueBytes += Math.max(0, Math.floor(item.encrypted_content.length * 3 / 4) - 650)
     return { ...item, encrypted_content: '' }
   }) : body.input
-  const visible = JSON.stringify({ ...body, input })
-  const tokens = Math.ceil((Buffer.byteLength(visible, 'utf8') + opaqueBytes) / 4 * multiplier)
+  let visualTokens = 0
+  const visible = JSON.stringify(mapImages({ ...body, input }, part => {
+    visualTokens += part.dsh_attachment ? imageTokens(part.dsh_attachment as ImageAttachmentRef) : 4096
+    return { type: 'input_image', detail: part.detail ?? 'auto' }
+  }))
+  const tokens = Math.ceil(((Buffer.byteLength(visible, 'utf8') + opaqueBytes) / 4 + visualTokens) * multiplier)
   if (!Number.isSafeInteger(tokens)) throw new LlmError('Native context estimate exceeded range', 'INVALID_TOKEN_COUNT')
   return tokens
 }
@@ -28,6 +34,9 @@ export function codexCompactionWindow(input: Item[], response: Item): Item[] {
     throw new LlmError('Codex compaction did not return one complete encrypted checkpoint', 'INVALID_COMPACTION')
   }
   // No truncation of retained user text. The controller fails if it cannot fit the budget.
-  const retained = input.filter(item => item.role === 'user' || item.role === 'developer')
+  // Only after a successful checkpoint, covered images are represented by the
+  // encrypted summary. Keep original attachments in the session event log.
+  const retained = mapImages({ input: input.filter(item => item.role === 'user' || item.role === 'developer') },
+    () => ({ type: 'input_text', text: '[Earlier image is represented in the compacted context.]' })).input as Item[]
   return structuredClone([...retained, { ...response.output[0], type: 'compaction' }])
 }

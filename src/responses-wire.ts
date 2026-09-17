@@ -2,6 +2,7 @@
 import { createHash } from 'node:crypto'
 import { LlmError, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, GenerateOptions, ReplayEnvelope, TokenUsage } from '@deepseek-ai/dsh-llm'
+import { imagePart } from './responses-images.ts'
 
 export type Item = Record<string, unknown>
 export const NATIVE_FORMAT = 'dsh-gpt-responses/v1'
@@ -90,6 +91,11 @@ export function requestBody(options: GenerateOptions, origin: string, customAppl
     for (const block of message.content) {
       switch (block.type) {
         case 'text': input.push({ role: message.role, content: block.text }); break
+        case 'image': {
+          if (message.role !== 'user') return invalid('Images require a user message or tool result')
+          input.push({ role: 'user', content: [imagePart(block.attachment)] })
+          break
+        }
         case 'reasoning': break // Foreign reasoning signatures and private state are not portable.
         case 'tool-call': {
           // Historical generic calls stay generic, even if today's tool declaration is custom.
@@ -99,8 +105,11 @@ export function requestBody(options: GenerateOptions, origin: string, customAppl
         case 'tool-result': {
           const type = calls.get(block.toolCallId)
           if (!type) return invalid('Tool result has no preceding call in this context window')
-          const text = block.content.map(part => part.type === 'text' ? part.text : invalid('Unsupported tool result content')).join('\n')
-          input.push({ type: type === 'custom_tool_call' ? 'custom_tool_call_output' : 'function_call_output', call_id: block.toolCallId, output: text })
+          const output = block.content.some(part => part.type === 'image')
+            ? block.content.map(part => part.type === 'image' ? imagePart(part.attachment)
+              : part.type === 'text' ? { type: 'input_text', text: part.text } : invalid('Unsupported tool result content'))
+            : block.content.map(part => part.type === 'text' ? part.text : invalid('Unsupported tool result content')).join('\n')
+          input.push({ type: type === 'custom_tool_call' ? 'custom_tool_call_output' : 'function_call_output', call_id: block.toolCallId, output })
           break
         }
         default: return invalid('This Responses adapter currently accepts text and tool content only')

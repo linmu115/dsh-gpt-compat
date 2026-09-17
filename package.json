@@ -1,6 +1,6 @@
 {
   "name": "dsh-gpt-compat",
-  "version": "0.5.0-dev.3",
+  "version": "0.5.0-dev.4",
   "private": true,
   "type": "module",
   "description": "Session-scoped Codex tools and native Responses transport for DeepSeek Harness",

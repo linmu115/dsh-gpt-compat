@@ -43,3 +43,14 @@ v2 检查点保留用户原文；本版不会为了挤入预算截断这些原�
 完整窗口每轮写入请求投影，会增加日志体积；原生计数及分批压缩会增加 HTTP 请求和等待。没有性能、任务成功率或成本改善的实测结论。真实 CPA 的 v2 工具、压缩和检查点恢复已经通过；旧 compact 路由及原生计数仍不可用。完整产品安装与 UI 验收仍待完成。详见 [联调记录](qualification.md)。
 
 协议参考：[OpenAI 压缩](https://developers.openai.com/api/docs/guides/compaction)、[原生输入计数](https://developers.openai.com/api/reference/typescript/resources/responses/subresources/input_tokens)。
+
+
+## 图片上下文（0.5.0-dev.4）
+
+用户消息与工具返回的图片以 DSH 持久附件引用进入原生投影；只在 HTTP 发送边界通过附件服务校验并读取字节，转换成 Responses input_image。普通发送、远端计数、独立 compact 与 codex-v2 共用这条转换路径。读取失败、取消或请求字节超限会中止，不静默过滤图片。
+
+Core 0.3.12-rc2.13 在适配器缺少 imageRequestPricing 时按每次出现预留 4096 token；适配器已返回错误结果仍拒绝。GPT 适配器公开估算接口：每图至少 4096，较大图片按 32 像素格估算并留余量；v2 总预算再乘配置的估算乘数。估算不是计费值或严格上界，不按 base64 长度计作文字 token。通用摘要预算同样计入图片。
+
+v2 压缩请求包含被覆盖的图片。只有成功获得完整加密检查点后，保留窗口中的旧图片才转成“已包含在压缩上下文”的文字标记，用户文字原样保留。原始会话附件不删除；近期保留组的图片仍原样发送。独立 compact 的完整返回窗口不丢弃，已知回传图片恢复成持久引用。通用摘要明确要求保留与任务有关的图片内容和文字标签。
+
+依据：[Responses 请求约定](https://developers.openai.com/api/reference/cli/resources/responses/methods/create)。真实 CPA 合成图通过发送、压缩和恢复接续，尚未用用户会话做发送验证；图片摘要仍有信息损失，不能宣称所有视觉细节无损。

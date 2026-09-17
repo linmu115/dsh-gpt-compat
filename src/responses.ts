@@ -12,6 +12,7 @@ import type {} from '@deepseek-ai/dsh-settings'
 import { NATIVE_FORMAT, blocksFromOutput, fingerprint, record, replayEnvelope, requestBody, usageFromResponse, type Item } from './responses-wire.ts'
 import { post, type Connection } from './responses-http.ts'
 import { codexCompactionWindow, estimateNativeTokens } from './native-budget.ts'
+import { hydrateImages, imageTokens, type ImageReader } from './responses-images.ts'
 
 export interface ModelConfig {
   id: string; contextWindow: number; maxTokens: number
@@ -68,7 +69,12 @@ export function validateConfig(config: Config): void {
 export class ResponsesAdapter extends LlmAdapter {
   constructor(private readonly config: () => Config, private readonly key: (profile: ProviderConfig) => Promise<string>,
     private readonly account?: (endpoint: string) => Promise<string | undefined>,
-    private readonly discover?: (endpoint: string) => Promise<ModelConfig[] | undefined>) { super() }
+    private readonly discover?: (endpoint: string) => Promise<ModelConfig[] | undefined>,
+    private readonly readImage?: ImageReader) { super() }
+  override imageRequestPricing(_provider: string, _model: string) {
+    return { priceImages: (images: Parameters<NonNullable<ReturnType<LlmAdapter['imageRequestPricing']>>['priceImages']>[0]) =>
+      images.map(ref => ({ visualTokens: imageTokens(ref), text: '' })) }
+  }
   private async models(profile: ProviderConfig): Promise<ModelConfig[]> {
     return (profile.nativeContextMode === 'codex-v2' ? await this.discover?.(profile.baseURL) : undefined) ?? profile.models
   }
@@ -77,7 +83,7 @@ export class ResponsesAdapter extends LlmAdapter {
     if (!profile) throw new LlmError('Responses provider is no longer configured', 'NO_ADAPTER')
     const info = (await this.models(profile)).find(value => value.id === model)
     if (!info) throw new LlmError('Declare context and output capacities for this Responses model', 'UNKNOWN_MODEL')
-    return { profile, model: { provider, id: model, name: model, inputModalities: ['text'],
+    return { profile, model: { provider, id: model, name: model, inputModalities: ['text', 'image'],
       context: { contextWindow: info.contextWindow }, defaultMaxTokens: info.maxTokens,
       ...(info.reasoningEfforts?.length ? { reasoning: {
         efforts: info.reasoningEfforts.map(id => ({ id: ReasoningEffortId(id), name: id })),
@@ -87,7 +93,7 @@ export class ResponsesAdapter extends LlmAdapter {
   }
   override async listModels(provider: string) {
     const profile = structuredClone(this.config().providers[provider])
-    return profile ? (await this.models(profile)).map(model => ({ provider, id: model.id, name: model.id, inputModalities: ['text'] as const })) : []
+    return profile ? (await this.models(profile)).map(model => ({ provider, id: model.id, name: model.id, inputModalities: ['text', 'image'] as const })) : []
   }
   override async resolveModel(provider: string, model: string) { return (await this.snapshot(provider, model)).model }
   override async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall> {
@@ -107,7 +113,9 @@ export class ResponsesAdapter extends LlmAdapter {
         const counted = { model, input: body.input, ...body.tools ? { tools: body.tools } : {} }
         this.checkSize(snapshot.profile, counted)
         if (snapshot.profile.nativeContextMode === 'codex-v2') return estimateNativeTokens(counted, snapshot.profile.tokenEstimateMultiplier)
-        const response = await post(connection, 'responses/input_tokens', counted, options.signal)
+        const hydrated = await hydrateImages(counted, this.readImage, snapshot.profile.maxRequestBytes, options.signal)
+        this.checkSize(snapshot.profile, hydrated.body)
+        const response = await post(connection, 'responses/input_tokens', hydrated.body, options.signal)
         if (!Number.isSafeInteger(response.input_tokens) || (response.input_tokens as number) < 0) throw new LlmError('Native token counter returned no valid count', 'INVALID_TOKEN_COUNT')
         return response.input_tokens as number
       },
@@ -115,14 +123,18 @@ export class ResponsesAdapter extends LlmAdapter {
         if (snapshot.profile.nativeContextMode === 'codex-v2') {
           const body = wire(options, [...input, { type: 'compaction_trigger' }])
           this.checkSize(snapshot.profile, body)
-          const response = await post(connection, 'responses', body, options.signal)
+          const hydrated = await hydrateImages(body, this.readImage, snapshot.profile.maxRequestBytes, options.signal)
+          this.checkSize(snapshot.profile, hydrated.body)
+          const response = await post(connection, 'responses', hydrated.body, options.signal)
           return codexCompactionWindow(input as Item[], response) as JsonValue[]
         }
         const instructions = options.messages.filter(message => message.role === 'system').flatMap(message => message.content.map(block => block.type === 'text' ? block.text : '')).join('\n')
         const body = { model, input, ...instructions ? { instructions } : {} }
         this.checkSize(snapshot.profile, body)
-        const response = await post(connection, 'responses/compact', body, options.signal)
-        return this.compactOutput(response) as JsonValue[]
+        const hydrated = await hydrateImages(body, this.readImage, snapshot.profile.maxRequestBytes, options.signal)
+        this.checkSize(snapshot.profile, hydrated.body)
+        const response = await post(connection, 'responses/compact', hydrated.body, options.signal)
+        return hydrated.restore(this.compactOutput(response)) as JsonValue[]
       },
     } }
   }
@@ -149,7 +161,9 @@ export class ResponsesAdapter extends LlmAdapter {
     const origin = this.origin(options.provider, options.model, connection, profile.nativeContextMode)
     const body = requestBody(options, origin, profile.customApplyPatch)
     if (Buffer.byteLength(JSON.stringify(body)) > profile.maxRequestBytes) throw new LlmError('Responses request exceeds configured limit', 'RESPONSES_SIZE_LIMIT')
-    const response = await post(connection, 'responses', body, options.signal)
+    const hydrated = await hydrateImages(body, this.readImage, profile.maxRequestBytes, options.signal)
+    this.checkSize(profile, hydrated.body)
+    const response = await post(connection, 'responses', hydrated.body, options.signal)
     options.signal?.throwIfAborted()
     const incomplete = response.status === 'incomplete'
     if (response.status !== 'completed' && !incomplete) throw new LlmError('Responses did not complete', 'RESPONSES_GENERATION_FAILED')
@@ -182,9 +196,11 @@ export class ResponsesAdapter extends LlmAdapter {
     const v2 = profile.nativeContextMode === 'codex-v2'
     const body = v2 ? { model, input: [...structuredClone(input), { type: 'compaction_trigger' }], stream: true, store: false, include: ['reasoning.encrypted_content'] } : { model, input: structuredClone(input) }
     if (Buffer.byteLength(JSON.stringify(body)) > profile.maxRequestBytes) throw new LlmError('Compact request exceeds configured limit', 'RESPONSES_SIZE_LIMIT')
-    const response = await post(await this.connection(profile, signal), v2 ? 'responses' : 'responses/compact', body, signal)
+    const hydrated = await hydrateImages(body, this.readImage, profile.maxRequestBytes, signal)
+    this.checkSize(profile, hydrated.body)
+    const response = await post(await this.connection(profile, signal), v2 ? 'responses' : 'responses/compact', hydrated.body, signal)
     signal?.throwIfAborted()
-    return { output: v2 ? codexCompactionWindow([...input], response) : this.compactOutput(response), usage: usageFromResponse(response.usage) }
+    return { output: v2 ? codexCompactionWindow([...input], response) : hydrated.restore(this.compactOutput(response)), usage: usageFromResponse(response.usage) }
   }
   private compactOutput(response: Item): Item[] {
     if (!Array.isArray(response.output) || !response.output.every(record)
@@ -209,7 +225,12 @@ export function apply(ctx: Context, config: Config): void {
     if (value === undefined) throw new LlmError(`No credential configured for ${ref}`, 'MISSING_CREDENTIAL')
     return assertUsableApiKey(value, name, ref)
   }, endpoint => ctx.get('gptCpaAccounts')?.identity(endpoint) ?? Promise.resolve(undefined),
-  endpoint => ctx.get('gptCpaAccounts')?.models(endpoint) ?? Promise.resolve(undefined))
+  endpoint => ctx.get('gptCpaAccounts')?.models(endpoint) ?? Promise.resolve(undefined),
+  async (ref, signal) => {
+    const attachments = ctx.get('attachments')
+    if (!attachments) throw new LlmError('DSH image storage is unavailable', 'IMAGE_STORAGE_UNAVAILABLE')
+    return attachments.readImage(ref, signal)
+  })
   const registration = ctx.llm.registerAdapter(Object.keys(current.providers), adapter)
   const directoryEntries = (value: Config) => Object.keys(value.providers).map(provider => ({
     provider, displayName: provider, settingsNs: 'gpt-responses', settingsPath: ['providers', provider], declared: true,
