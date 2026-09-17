@@ -2,7 +2,6 @@ import { useId, useState } from 'react'
 import { Button, Input, IconPlusOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
-import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
 import { Accounts } from './Accounts.tsx'
 
 export interface Binding { provider: string; models: string[] }
@@ -11,7 +10,7 @@ export interface Face {
   hooks: { bindings: SettingsScope<BindingSettings> }
   save: (bindings: Binding[], revision: number) => Promise<void>
 }
-export type Props = PropsRuntime<'settings.models.footer'> & PropsLocale<'gpt.compat'> & InjectFace<Face>
+export type Props = PropsRuntime<'settings.section'> & PropsLocale<'gpt.compat'> & InjectFace<Face>
 
 /** Edits a local draft against its original revision; pushed changes cannot silently overwrite it. */
 export function Bindings(props: Props) {
