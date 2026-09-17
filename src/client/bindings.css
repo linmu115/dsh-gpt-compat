@@ -13,6 +13,8 @@
 .gpt-compat-settings h3 { margin: 0; font-size: 16px; line-height: 24px; font-weight: 500; }
 .gpt-compat-settings__intro { margin: 0; font-size: 14px; line-height: 22px; color: var(--dsw-alias-label-tertiary); }
 .gpt-compat-settings__bindings { display: grid; gap: 8px; min-width: 0; }
+.gpt-compat-settings__catalog { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+.gpt-compat-settings__catalog li { padding: 6px 10px; border-radius: 8px; background: var(--dsw-alias-bg-layer-1); font-size: 14px; line-height: 22px; overflow-wrap: anywhere; min-width: 0; max-width: 100%; }
 .gpt-compat-settings__card {
   display: flex;
   flex-direction: column;

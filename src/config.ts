@@ -66,3 +66,10 @@ export function matches(config: Config, provider: string | undefined, model: str
     binding.provider === provider && binding.models.some(pattern => pattern.endsWith('*')
       ? model.startsWith(pattern.slice(0, -1)) : model === pattern))
 }
+
+/** Only our registered native providers receive automatic GPT compatibility. */
+export function withNativeBindings(config: Config, directory: readonly { provider: string; settingsNs: string }[]): Config {
+  const native = new Set(directory.filter(entry => entry.settingsNs === 'gpt-responses').map(entry => entry.provider))
+  return { ...config, bindings: [...config.bindings.filter(binding => !native.has(binding.provider)),
+    ...[...native].map(provider => ({ provider, models: ['gpt-*'] }))] }
+}

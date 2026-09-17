@@ -67,11 +67,15 @@ export function validateConfig(config: Config): void {
 /** Native wire entry point with a generation frozen at prepareCall, including endpoint and key reference. */
 export class ResponsesAdapter extends LlmAdapter {
   constructor(private readonly config: () => Config, private readonly key: (profile: ProviderConfig) => Promise<string>,
-    private readonly account?: (endpoint: string) => Promise<string | undefined>) { super() }
-  private snapshot(provider: string, model: string): { profile: ProviderConfig; model: LlmResolvedModelInfo } {
+    private readonly account?: (endpoint: string) => Promise<string | undefined>,
+    private readonly discover?: (endpoint: string) => Promise<ModelConfig[] | undefined>) { super() }
+  private async models(profile: ProviderConfig): Promise<ModelConfig[]> {
+    return (profile.nativeContextMode === 'codex-v2' ? await this.discover?.(profile.baseURL) : undefined) ?? profile.models
+  }
+  private async snapshot(provider: string, model: string): Promise<{ profile: ProviderConfig; model: LlmResolvedModelInfo }> {
     const profile = structuredClone(this.config().providers[provider])
     if (!profile) throw new LlmError('Responses provider is no longer configured', 'NO_ADAPTER')
-    const info = profile.models.find(value => value.id === model)
+    const info = (await this.models(profile)).find(value => value.id === model)
     if (!info) throw new LlmError('Declare context and output capacities for this Responses model', 'UNKNOWN_MODEL')
     return { profile, model: { provider, id: model, name: model, inputModalities: ['text'],
       context: { contextWindow: info.contextWindow }, defaultMaxTokens: info.maxTokens,
@@ -82,12 +86,13 @@ export class ResponsesAdapter extends LlmAdapter {
     } }
   }
   override async listModels(provider: string) {
-    return this.config().providers[provider]?.models.map(model => ({ provider, id: model.id, name: model.id, inputModalities: ['text'] as const })) ?? []
+    const profile = structuredClone(this.config().providers[provider])
+    return profile ? (await this.models(profile)).map(model => ({ provider, id: model.id, name: model.id, inputModalities: ['text'] as const })) : []
   }
-  override async resolveModel(provider: string, model: string) { return this.snapshot(provider, model).model }
+  override async resolveModel(provider: string, model: string) { return (await this.snapshot(provider, model)).model }
   override async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall> {
     signal?.throwIfAborted()
-    const snapshot = this.snapshot(provider, model)
+    const snapshot = await this.snapshot(provider, model)
     const connection = await this.connection(snapshot.profile, signal)
     const origin = this.origin(provider, model, connection, snapshot.profile.nativeContextMode)
     const wire = (options: GenerateOptions, input: JsonValue[]) => requestBody({ ...options,
@@ -173,7 +178,7 @@ export class ResponsesAdapter extends LlmAdapter {
 
   /** Explicit compact transport only. Caller owns context budgeting, durable commit, and selection. */
   async compact(provider: string, model: string, input: readonly Item[], signal?: AbortSignal): Promise<{ output: Item[]; usage?: ReturnType<typeof usageFromResponse> }> {
-    const { profile } = this.snapshot(provider, model)
+    const { profile } = await this.snapshot(provider, model)
     const v2 = profile.nativeContextMode === 'codex-v2'
     const body = v2 ? { model, input: [...structuredClone(input), { type: 'compaction_trigger' }], stream: true, store: false, include: ['reasoning.encrypted_content'] } : { model, input: structuredClone(input) }
     if (Buffer.byteLength(JSON.stringify(body)) > profile.maxRequestBytes) throw new LlmError('Compact request exceeds configured limit', 'RESPONSES_SIZE_LIMIT')
@@ -203,7 +208,8 @@ export function apply(ctx: Context, config: Config): void {
     const value = credentials ? (await credentials.resolve(ref))?.value : launchEnvironmentOf(ctx).get(ref)?.value
     if (value === undefined) throw new LlmError(`No credential configured for ${ref}`, 'MISSING_CREDENTIAL')
     return assertUsableApiKey(value, name, ref)
-  }, endpoint => ctx.get('gptCpaAccounts')?.identity(endpoint) ?? Promise.resolve(undefined))
+  }, endpoint => ctx.get('gptCpaAccounts')?.identity(endpoint) ?? Promise.resolve(undefined),
+  endpoint => ctx.get('gptCpaAccounts')?.models(endpoint) ?? Promise.resolve(undefined))
   const registration = ctx.llm.registerAdapter(Object.keys(current.providers), adapter)
   const directoryEntries = (value: Config) => Object.keys(value.providers).map(provider => ({
     provider, displayName: provider, settingsNs: 'gpt-responses', settingsPath: ['providers', provider], declared: true,

@@ -51,7 +51,7 @@ async function invoke<T>(action: string, data: Record<string, unknown> = {}, sig
   return result.value as T
 }
 
-export function Accounts({ t }: { t: (key: AccountKey) => string }) {
+export function Accounts({ t, onChanged }: { t: (key: AccountKey) => string; onChanged?: () => void }) {
   const id = useId()
   const [snapshot, setSnapshot] = useState<AccountSnapshot>()
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [key, setKey] = useState('')
@@ -70,6 +70,7 @@ export function Accounts({ t }: { t: (key: AccountKey) => string }) {
     } finally { setBusy(false) }
   }
   const reload = async () => { setSnapshot(await invoke<AccountSnapshot>('list')) }
+  useEffect(() => { if (snapshot) onChanged?.() }, [snapshot?.revision, snapshot?.configured])
   useEffect(() => {
     const abort = new AbortController()
     invoke<AccountSnapshot>('list', {}, abort.signal).then(setSnapshot).catch(cause => { if (!abort.signal.aborted) setError(friendly(cause)) })

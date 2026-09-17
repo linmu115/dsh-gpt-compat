@@ -10,6 +10,12 @@ function fixture() {
     calls.push({ path, method: init?.method || 'GET', body })
     if (path === 'auth-files' && init?.method === 'DELETE') { const name = new URL(String(url)).searchParams.get('name'); rows.splice(rows.findIndex(a => a.name === name), 1); return Response.json({ status: 'ok' }) }
     if (path === 'auth-files') return Response.json({ files: rows })
+    if (path === 'model-definitions/codex') return Response.json({ models: [
+      { id: 'gpt-a', context_length: 272000, max_completion_tokens: 128000, thinking: { levels: ['low', 'high'] } },
+      { id: 'gpt-b', context_length: 921000, max_completion_tokens: 128000 },
+      { id: 'gpt-image-2' },
+    ] })
+    if (path === 'auth-files/models') return Response.json({ models: [{ id: new URL(String(url)).searchParams.get('name') === 'a.json' ? 'gpt-a' : 'gpt-b' }, { id: 'gpt-image-2' }] })
     if (path === 'routing/codex-account') {
       if (init?.method === 'PUT') { if (body.expected !== selected) return Response.json({}, { status: 409 }); selected = body.auth_index; return Response.json({ status: 'ok', auth_index: selected }) }
       return Response.json({ auth_index: selected, contract: 'codex-fixed-account/v1' })
@@ -32,6 +38,26 @@ it('returns a sanitized account view and leaves standby accounts saved when pinn
   expect(f.calls.filter(c => c.method === 'PATCH')).toHaveLength(0)
   await expect(f.service.switch('a', before.revision)).rejects.toThrow('stale')
   expect(f.selected()).toBe('b')
+})
+
+it('discovers every available chat model and follows fixed account changes without changing accounts', async () => {
+  const f = fixture()
+  expect(await f.service.models('https://other.example/v1')).toBeUndefined()
+  expect(await f.service.models('http://127.0.0.1:8317/v1')).toEqual([
+    { id: 'gpt-a', contextWindow: 272000, maxTokens: 128000, reasoningEfforts: ['low', 'high'] },
+    { id: 'gpt-b', contextWindow: 921000, maxTokens: 128000 },
+  ])
+  expect(f.calls.every(call => call.method === 'GET')).toBe(true)
+  await f.service.switch('b', (await f.service.list()).revision)
+  expect((await f.service.models('http://127.0.0.1:8317/v1'))?.map(model => model.id)).toEqual(['gpt-b'])
+  await f.service.switch('paused', (await f.service.list()).revision)
+  expect(await f.service.models('http://127.0.0.1:8317/v1')).toEqual([])
+})
+
+it('does not guess capacities when an available model has no metadata', async () => {
+  const f = fixture(), original = f.request.getMockImplementation()!
+  f.request.mockImplementation(async (url, init) => String(url).includes('/model-definitions/') ? Response.json({ models: [] }) : original(url, init))
+  await expect(f.service.models('http://127.0.0.1:8317/v1')).rejects.toThrow('missingModelCapacity')
 })
 
 it('keeps the new selection fail-closed if enabling that credential fails', async () => {

@@ -7,7 +7,7 @@
 ## 已实现
 
 - 可选的 [CPA 账号管理模块](docs/accounts.md)：在 GPT 设置区查看账号及额度，新增/移除登录，明确指定单个代理账号，失败时停止而不轮换；需要单独的 CPA 固定账号补丁。
-- 设置窗口左侧“GPT 适配”中的绑定编辑器；按提供商稳定 ID 和明确模型名或末尾 `*` 前缀匹配，默认不绑定。
+- 设置窗口左侧“GPT 适配”自动展示本插件提供商的 GPT 会话模型，无需手填绑定；在会话页面选择模型和推理强度。
 - 在下一步骤开始前捕获选择。会话隔离，预览不改变正在使用的工具；绑定关闭后恢复原工具。
 - `apply_patch`：新增、更新、移动、删除；支持多片段、CRLF、中文。预先检查整个补丁，写入和删除带文件版本检查。多文件不是事务：中途失败报告已修改文件。
 - `exec_command` 与 `write_stdin`：使用配置的 DSH shell，继承受管 DSH 会话环境，传递 stdin、逐次读取输出、报告退出状态、取消和限制输出；句柄仅属于一个 agent。
@@ -33,7 +33,7 @@
 
 `cordis.patch.yml` 是 bundle 插入配置，默认 `bindings: []`。已验证通过真实 `cordis.yml` Loader 加载源代码组成的测试配置；打包产物已在测试专用宿主组合中通过模拟服务及真实 CPA 账号检查；副本产品接入已通过，范围见 [验收记录](docs/qualification.md)。
 
-模型页面保存到 `gpt-compat` 设置空间。每条绑定具有 `provider` 与 `models`；例如提供商 ID `cpa`、模型范围 `gpt-*`。保存保留草稿读取时的版本，冲突时保留草稿。移除全部绑定即关闭工具兼容。
+本插件注册的 `gpt-responses` 提供商自动启用 GPT 兼容。接入已连接的本机 CPA 账号模块时，从账号可用模型和 CPA 元数据自动读取 GPT 会话模型、上下文容量和推理档位；设置页只读展示并提供刷新，实际选择留在会话页面。其他提供商仍可通过高级 `gpt-compat.bindings` 配置精确范围；同名 GPT 模型不会自动被接管。卸载提供商或切到未绑定路线后恢复普通工具。
 
 默认隐藏工具为 `write`、`edit`、`str_replace_editor`、`bash`、`pwsh`。自定义工具部署需要核对 `hiddenTools`。其余可配置项为补丁、文件、输出大小，进程数量，以及默认与最大等待时间，见 `src/config.ts`。
 
@@ -49,11 +49,11 @@ node scripts/build.mjs
 
 先准备上述基线的宿主源码、应用补丁并按宿主开发说明构建类型；设置 `DSH_HOST_ROOT`（默认查找相邻 `../deepseek-harness`），安装本包开发依赖，再运行上面命令。生成的本机类型配置不提交。测试复用宿主的 decorator 转换与合成测试助手。构建产生 `lib/index.mjs`、`lib/responses.mjs`、`lib/client.js`。当前通过已配置依赖验证，尚未做全新机器安装验收。
 
-原生入口通过独立 `cordis.yml` 条目挂载，见 [Responses 接入说明](docs/responses.md)。已有提供商 ID 被其他适配器占用时拒绝重复注册；需要在配置中把该路由交给原生入口，或使用独立 ID 并在兼容绑定中选择它。默认 bundle 不自动改动已有提供商。
+原生入口通过独立 `cordis.yml` 条目挂载，见 [Responses 接入说明](docs/responses.md)。已有提供商 ID 被其他适配器占用时拒绝重复注册；需要在配置中把该路由交给原生入口，或使用独立 ID，由插件自动识别自己的提供商。默认 bundle 不自动改动已有提供商。
 
 ## 验证与后续
 
-测试包含真实 Loader、真实临时文件、真实 PowerShell，以及可控模型响应的 agent loop；普通测试不调用真实模型；本阶段另有显式授权的 CPA 账号联调。模型设置组件测试覆盖绑定保存、版本传递、拒绝后保留草稿及清空绑定。完整记录和后续协议/压缩缺口见 [项目地图](docs/project/map.md) 与 [当前实现](docs/project/records/implementation/current.md)。没有性能、智力、时间或成本改善的实测结论。
+测试包含真实 Loader、真实临时文件、真实 PowerShell，以及可控模型响应的 agent loop；普通测试不调用真实模型；本阶段另有显式授权的 CPA 账号联调。模型设置组件测试覆盖自动加载、只读呈现和失败重试；模型发现测试覆盖账号范围、容量缺失、推理能力快照和提供商隔离。完整记录和后续协议/压缩缺口见 [项目地图](docs/project/map.md) 与 [当前实现](docs/project/records/implementation/current.md)。没有性能、智力、时间或成本改善的实测结论。
 
 ## Session Maintenance 接入
 

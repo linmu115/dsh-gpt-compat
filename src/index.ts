@@ -4,7 +4,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-settings'
 import { createUserMessage, type UserMessage } from '@deepseek-ai/dsh-llm'
-import { Config, matches, validateConfig } from './config.ts'
+import { Config, matches, validateConfig, withNativeBindings } from './config.ts'
 import { ProcessPool } from './processes.ts'
 import { installTools } from './tools.ts'
 import { installContext } from './context.ts'
@@ -32,7 +32,8 @@ export function apply(ctx: Context, config: Config): void {
   validateConfig(config)
   if (ctx.systemPrompt.supportsPreparation !== true) throw new Error('dsh-gpt-compat requires the DSH pre-assembly preparation extension')
   let source = () => config
-  installContext(ctx, () => source())
+  const effective = () => withNativeBindings(source(), ctx.llm.listConfigurableProviders())
+  installContext(ctx, effective)
   let closing = false
   const states = new Map<Agent, State>()
   ctx.inject(['settings'], settingsCtx => {
@@ -82,7 +83,7 @@ export function apply(ctx: Context, config: Config): void {
     if (!agent || !context.signal || context.preview) return
     if (closing) throw new Error('Compatibility plugin is unloading')
     const state = ensure(agent)
-    const current = structuredClone(source())
+    const current = structuredClone(effective())
     const route = context.route
     const active = matches(current, route?.provider, route?.model)
     state.targetActive = active

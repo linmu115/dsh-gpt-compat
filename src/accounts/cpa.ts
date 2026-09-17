@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { AccountView, AccountSnapshot, AccountQuota, QuotaWindow } from './types.ts'
+import type { ModelConfig } from '../responses.ts'
 
 type Row = Record<string, unknown>
 const record = (value: unknown): Row => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Row : {}
@@ -93,6 +94,34 @@ export class CpaAccounts {
   async identity(endpoint: string): Promise<string | undefined> {
     if (new URL(endpoint).origin !== this.endpoint || !await this.credentials.get()) return undefined
     return await this.selection() || undefined
+  }
+  /** Read only: intersect the selected account's catalog with CPA capability metadata. */
+  async models(endpoint: string): Promise<ModelConfig[] | undefined> {
+    if (new URL(endpoint).origin !== this.endpoint || !await this.credentials.get()) return undefined
+    const selected = await this.selection()
+    const accounts = (await this.accounts()).filter(account => !account.disabled && (!selected || selected === account.index))
+    const definitions = await this.api('model-definitions/codex')
+    if (!Array.isArray(definitions.models)) throw new AccountError('invalidResponse')
+    const available = new Set<string>()
+    for (const account of accounts) {
+      const catalog = await this.api('auth-files/models?name=' + encodeURIComponent(account.name))
+      if (!Array.isArray(catalog.models)) throw new AccountError('invalidResponse')
+      for (const model of catalog.models) available.add(text(record(model).id))
+    }
+    if (await this.selection() !== selected) throw new AccountError('stale')
+    const result: ModelConfig[] = []
+    for (const value of definitions.models) {
+      const row = record(value), id = text(row.id)
+      if (!available.has(id) || !id.startsWith('gpt-') || id.startsWith('gpt-image-')) continue
+      const contextWindow = number(row.context_length), maxTokens = number(row.max_completion_tokens)
+      if (!contextWindow || !maxTokens || !Number.isSafeInteger(contextWindow) || !Number.isSafeInteger(maxTokens) || maxTokens < 1 || maxTokens >= contextWindow) throw new AccountError('invalidModelCapacity')
+      const levels = record(row.thinking).levels
+      if (levels !== undefined && (!Array.isArray(levels) || levels.some(level => typeof level !== 'string' || !level.trim() || level.trim() !== level) || new Set(levels).size !== levels.length)) throw new AccountError('invalidModelCapacity')
+      result.push({ id, contextWindow, maxTokens, ...(Array.isArray(levels) && levels.length ? { reasoningEfforts: levels as string[] } : {}) })
+    }
+    // Unknown text models require metadata; do not silently omit them or invent capacities.
+    for (const id of available) if (id.startsWith('gpt-') && !id.startsWith('gpt-image-') && !result.some(model => model.id === id)) throw new AccountError('missingModelCapacity')
+    return result
   }
   private exclusive<T>(work: () => Promise<T>): Promise<T> {
     const next = this.tail.then(work, work)

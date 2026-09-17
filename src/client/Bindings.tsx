@@ -1,76 +1,46 @@
-import { useId, useState } from 'react'
-import { Button, Input, IconPlusOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { useEffect, useId, useRef, useState } from 'react'
+import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { Accounts } from './Accounts.tsx'
 
-export interface Binding { provider: string; models: string[] }
-export interface BindingSettings { bindings: Binding[] }
+export interface ProviderSettings { providers: Record<string, unknown> }
+export interface ModelGroup { id: string; name: string; models: readonly { id: string; name: string }[] }
 export interface Face {
-  hooks: { bindings: SettingsScope<BindingSettings> }
-  save: (bindings: Binding[], revision: number) => Promise<void>
+  hooks: { providers: SettingsScope<ProviderSettings> }
+  loadModels: (providers: string[]) => Promise<readonly ModelGroup[]>
 }
 export type Props = PropsRuntime<'settings.section'> & PropsLocale<'gpt.compat'> & InjectFace<Face>
 
-/** Edits a local draft against its original revision; pushed changes cannot silently overwrite it. */
+/** Read-only discovery. Model selection belongs to the conversation. */
 export function Bindings(props: Props) {
-  const id = useId()
-  const snapshot = props.useBindings(value => value)
-  const [draft, setDraft] = useState<Binding[]>()
-  const [revision, setRevision] = useState<number>()
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const rows = draft ?? snapshot.value?.bindings ?? []
-  const edit = (next: Binding[]) => {
-    if (!draft) setRevision(snapshot.revision)
-    setDraft(next)
-    setError('')
-  }
-  const writable = snapshot.status === 'ready' && snapshot.writable && !saving
+  const id = useId(), snapshot = props.useProviders(value => value)
+  const providers = JSON.stringify(Object.keys(snapshot.value?.providers ?? {}).sort())
+  const [groups, setGroups] = useState<readonly ModelGroup[]>([])
+  const [refresh, setRefresh] = useState(0), [loading, setLoading] = useState(true), [error, setError] = useState(false)
+  const load = useRef(props.loadModels); load.current = props.loadModels
+  useEffect(() => {
+    let active = true
+    setGroups([]); setError(false); setLoading(true)
+    if (snapshot.status !== 'ready') { setLoading(false); return }
+    load.current(JSON.parse(providers)).then(value => { if (active) setGroups(value) }, () => { if (active) setError(true) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [providers, snapshot.status, refresh])
   const { t } = props
-  return <><section aria-labelledby={`${id}-title`} className="gpt-compat-settings" aria-busy={saving}>
+  return <><section aria-labelledby={`${id}-title`} className="gpt-compat-settings" aria-busy={loading}>
     <header className="gpt-compat-settings__heading">
-      <h3 id={`${id}-title`}>{t('title')}</h3>
+      <div className="gpt-compat-settings__card-heading"><h3 id={`${id}-title`}>{t('title')}</h3>
+        <Button variant="outline" size="sm" disabled={loading || snapshot.status !== 'ready'} onClick={() => setRefresh(value => value + 1)}>{t('refreshModels')}</Button></div>
       <p className="gpt-compat-settings__intro">{t('description')}</p>
     </header>
-    {snapshot.status !== 'ready' && <p className="gpt-compat-settings__notice" role="status">{t('unavailable')}</p>}
-    <div className="gpt-compat-settings__bindings">
-      {rows.map((row, index) => <div key={index} role="group" aria-labelledby={`${id}-binding-${index}`} className="gpt-compat-settings__card">
-        <div className="gpt-compat-settings__card-heading">
-          <h4 id={`${id}-binding-${index}`}>{t('binding')} {index + 1}</h4>
-          <Button size="sm" disabled={!writable} className="gpt-compat-settings__remove"
-            onClick={() => edit(rows.filter((_, i) => i !== index))}>{t('remove')}</Button>
-        </div>
-        <label className="gpt-compat-settings__field">
-          <span>{t('provider')}</span>
-          <Input aria-label={`${t('provider')} ${index + 1}`} className="gpt-compat-settings__input" disabled={!writable}
-            autoComplete="off" spellCheck={false} value={row.provider}
-            onChange={event => edit(rows.map((r, i) => i === index ? { ...r, provider: event.target.value } : r))} />
-        </label>
-        <label className="gpt-compat-settings__field">
-          <span>{t('models')}</span>
-          <textarea aria-label={`${t('models')} ${index + 1}`} aria-describedby={`${id}-hint`} disabled={!writable}
-            className="gpt-compat-settings__models" rows={3} spellCheck={false} value={row.models.join(', ')}
-            onChange={event => edit(rows.map((r, i) => i === index ? { ...r, models: event.target.value.split(',').map(model => model.trim()) } : r))} />
-        </label>
-      </div>)}
-    </div>
-    {!rows.length && snapshot.status === 'ready' && <p className="gpt-compat-settings__empty">{t('disabled')}</p>}
-    <p id={`${id}-hint`} className="gpt-compat-settings__hint">{t('hint')}</p>
-    {error && <p className="gpt-compat-settings__error" role="alert">{error}</p>}
-    <div className="gpt-compat-settings__actions">
-      <Button variant="outline" disabled={!writable} icon={<IconPlusOutline16 size={16} />}
-        onClick={() => edit([...rows, { provider: '', models: ['gpt-*'] }])}>{t('add')}</Button>
-      <div className="gpt-compat-settings__commit">
-      <Button variant="outline" disabled={saving || !draft} onClick={() => { setDraft(undefined); setError('') }}>{t('discard')}</Button>
-      <Button variant="primary" disabled={!writable || !draft || revision === undefined} onClick={async () => {
-        if (!draft || revision === undefined) return
-        setSaving(true)
-        try { await props.save(draft, revision); setDraft(undefined); setError('') }
-        catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)) }
-        finally { setSaving(false) }
-      }}>{saving ? t('saving') : t('save')}</Button>
-      </div>
-    </div>
-  </section><Accounts t={t} /></>
+    {snapshot.status !== 'ready' ? <p role="status">{t('unavailable')}</p>
+      : loading ? <p role="status" className="gpt-compat-settings__hint">{t('loadingModels')}</p>
+      : error ? <p role="alert" className="gpt-compat-settings__error">{t('failedModels')}</p>
+      : groups.some(group => group.models.length) ? <div className="gpt-compat-settings__bindings">{groups.map(group => <div key={group.id} className="gpt-compat-settings__card">
+        <h4>{group.name}</h4>
+        <ul className="gpt-compat-settings__catalog">{group.models.map(model => <li key={model.id}>{model.name}</li>)}</ul>
+      </div>)}</div> : <p role="status" className="gpt-compat-settings__empty">{t('emptyModels')}</p>}
+    <p className="gpt-compat-settings__hint">{t('hint')}</p>
+  </section><Accounts t={t} onChanged={() => setRefresh(value => value + 1)} /></>
 }

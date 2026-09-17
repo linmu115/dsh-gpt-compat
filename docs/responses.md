@@ -4,7 +4,7 @@
 
 ## 配置
 
-在 DSH profile 中保留工具插件，再增加下面的入口。示例 ID、端点和容量必须换成实际配置；本机已验证此 CPA 地址；模型名与容量仍必须按实际配置填写。
+在 DSH profile 中保留工具插件，再增加下面的入口。示例 ID、端点和容量必须换成实际配置；本机已验证此 CPA 地址。以下显式模型配置用于未接入自动发现的普通 Responses 路线；已连接 CPA 账号模块且使用 codex-v2 时，模型列表由 CPA 自动发现结果替代。
 
 ```yaml
 - id: gpt-responses
@@ -24,7 +24,7 @@
             defaultReasoningEffort: medium
 ```
 
-模型设置中的兼容绑定选择 `cpa-native`，范围使用实际型号。容量数字只是格式示例，代码没有按模型家族写死上限。凭据从 DSH credentials 服务读取；没有该服务时使用启动环境。配置和日志不保存原始 key。
+本插件注册的 `cpa-native` 路线自动启用 GPT 兼容，无需在设置页填写绑定。容量数字只是格式示例，代码没有按模型家族写死上限。凭据从 DSH credentials 服务读取；没有该服务时使用启动环境。配置和日志不保存原始 key。
 
 连接配置注册在 `gpt-responses` 设置空间，并进入提供商配置目录。端点、凭据引用与容量按请求准备时的快照固定，下一次请求采用新设置。重复 provider ID 会报错；原生入口与 pi-ai 不能同时占用相同 ID。
 
@@ -53,3 +53,9 @@ HTTP 带 DSH attribution，禁止自动重定向；请求、响应均有字节�
 离线测试启动本机 HTTP 服务，经真实 Cordis Loader、DSH agent loop 和工具执行器创建临时文件，再检查下一轮 HTTP body。另覆盖日志序列化还原、跨提供商切换、设置快照、取消、错误分类和完整压缩窗口。
 
 `tests/responses-live.spec.ts` 默认跳过。只有显式设置 `GPT_COMPAT_LIVE_TEST=1` 并提供 `GPT_COMPAT_LIVE_URL`、`GPT_COMPAT_LIVE_MODEL`、`GPT_COMPAT_LIVE_CONTEXT`、`GPT_COMPAT_LIVE_KEY` 才发送真实请求。它仅检查普通 Responses 文本响应及重放元数据，不能替代 custom tool 和 compact 的真实验收。
+
+## CPA 自动模型发现
+
+同一端点的 CPA 账号模块已连接且使用 `codex-v2` 时，账号的 `/auth-files/models` 与 `/model-definitions/codex` 取交集，提供全部 GPT 会话模型。固定模式只读取选定账号，普通模式读取已启用账号，暂停模式提供空列表。图片生成模型不进入文字会话选择器。容量及推理档位来自 CPA 定义；发现失败或缺失容量会报错，不用旧列表冒充成功，也不猜测上下文容量。未接入管理模块或其它端点继续使用显式配置。
+
+准备请求时复制提供商配置与解析后的模型能力，保留步骤快照。账号管理操作通知宿主刷新模型目录；设置列表刷新发现变化时也通知会话选择器。这里检测的是 CPA 宣告可用的模型，不等同于逐个模型完成真实生成验收。
