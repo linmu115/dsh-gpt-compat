@@ -3,7 +3,7 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "GPT 兼容插件 · 职责与边界",
-    "subtitle": "真实 CPA 工具、v2 原生压缩与进程恢复通过；估计预算，产品安装待验收。",
+    "subtitle": "副本工具与原生压缩已验收；可选 CPA 账号模块固定单账号，失败不轮换。",
     "locale": "zh-CN",
     "quality_profile": "standard",
     "views": [
@@ -40,6 +40,17 @@
           "ordinary"
         ],
         "note": "原生密文与通用摘要不会发给不匹配的模型。"
+      },
+      {
+        "id": "accounts",
+        "label": "固定账号",
+        "focus": [
+          "account-ui",
+          "account-bridge",
+          "cpa",
+          "protocol"
+        ],
+        "note": "账号选择对该 CPA 全局生效；模型重放范围包含固定账号身份。"
       }
     ]
   },
@@ -50,11 +61,11 @@
       "label": "模型与会话选择",
       "sublabel": "宿主提供当前模型 / 作用域",
       "pos": [
-        65.0,
-        117.0
+        65,
+        117
       ],
       "size": [
-        182.0,
+        182,
         71.5
       ]
     },
@@ -64,11 +75,11 @@
       "label": "文件 / 进程 / 权限",
       "sublabel": "保留底层服务和正式执行链",
       "pos": [
-        65.0,
-        351.0
+        65,
+        351
       ],
       "size": [
-        182.0,
+        182,
         71.5
       ]
     },
@@ -76,13 +87,13 @@
       "id": "history",
       "type": "database",
       "label": "完整原始历史",
-      "sublabel": "持久化 · 专属 Maintenance Adapter",
+      "sublabel": "持久化 / 插件扩展数据",
       "pos": [
-        65.0,
-        585.0
+        65,
+        585
       ],
       "size": [
-        182.0,
+        182,
         71.5
       ]
     },
@@ -93,10 +104,10 @@
       "sublabel": "按会话 / 安全步骤切换",
       "pos": [
         422.5,
-        117.0
+        117
       ],
       "size": [
-        182.0,
+        182,
         71.5
       ]
     },
@@ -107,10 +118,10 @@
       "sublabel": "补丁 / 命令 / 输出 / 取消",
       "pos": [
         422.5,
-        351.0
+        351
       ],
       "size": [
-        182.0,
+        182,
         71.5
       ]
     },
@@ -121,10 +132,10 @@
       "sublabel": "声明 / 状态字段 / 结果编码",
       "pos": [
         747.5,
-        117.0
+        117
       ],
       "size": [
-        182.0,
+        182,
         71.5
       ]
     },
@@ -135,10 +146,10 @@
       "sublabel": "按当前路线重建最新进度",
       "pos": [
         747.5,
-        351.0
+        351
       ],
       "size": [
-        182.0,
+        182,
         71.5
       ]
     },
@@ -149,10 +160,10 @@
       "sublabel": "完整加密窗口 / 兼容范围",
       "pos": [
         422.5,
-        585.0
+        585
       ],
       "size": [
-        182.0,
+        182,
         71.5
       ]
     },
@@ -163,10 +174,10 @@
       "sublabel": "可读摘要 / 独立触发",
       "pos": [
         747.5,
-        585.0
+        585
       ],
       "size": [
-        182.0,
+        182,
         71.5
       ]
     },
@@ -174,13 +185,13 @@
       "id": "cpa",
       "type": "external",
       "label": "CPA → Codex 后端",
-      "sublabel": "外部 API / 真实部署待验证",
+      "sublabel": "登录凭据 / 固定账号 / 原生 API",
       "pos": [
-        1105.0,
-        117.0
+        1105,
+        117
       ],
       "size": [
-        182.0,
+        182,
         71.5
       ]
     },
@@ -190,11 +201,39 @@
       "label": "普通 DSH 提供商",
       "sublabel": "其他模型 / 通用上下文",
       "pos": [
-        1105.0,
-        351.0
+        1105,
+        351
       ],
       "size": [
-        182.0,
+        182,
+        71.5
+      ]
+    },
+    {
+      "id": "account-ui",
+      "type": "frontend",
+      "label": "CPA 账号设置",
+      "sublabel": "查看额度 / 具名确认 / 登录",
+      "pos": [
+        1440,
+        351
+      ],
+      "size": [
+        210,
+        71.5
+      ]
+    },
+    {
+      "id": "account-bridge",
+      "type": "backend",
+      "label": "可选账号模块",
+      "sublabel": "DSH 认证 / 管理凭据 / 修订",
+      "pos": [
+        1440,
+        117
+      ],
+      "size": [
+        210,
         71.5
       ]
     }
@@ -220,6 +259,15 @@
         "context",
         "native",
         "portable"
+      ],
+      "pad": 26
+    },
+    {
+      "kind": "region",
+      "label": "GPT 插件 · 可选账号管理",
+      "wraps": [
+        "account-ui",
+        "account-bridge"
       ],
       "pad": 26
     }
@@ -265,7 +313,7 @@
       "id": "protocol-cpa",
       "from": "protocol",
       "to": "cpa",
-      "label": "原生请求与压缩",
+      "label": "原生请求 / 账号校验",
       "fromSide": "right",
       "toSide": "left"
     },
@@ -298,7 +346,7 @@
       "toSide": "left",
       "via": [
         [
-          156.0,
+          156,
           500.5
         ],
         [
@@ -311,7 +359,7 @@
         ]
       ],
       "labelAt": [
-        403.0,
+        403,
         500.5
       ]
     },
@@ -324,11 +372,11 @@
       "toSide": "top",
       "via": [
         [
-          637.0,
+          637,
           386.75
         ],
         [
-          637.0,
+          637,
           526.5
         ],
         [
@@ -352,6 +400,26 @@
         838.5,
         503.8
       ]
+    },
+    {
+      "id": "ui-account-bridge",
+      "from": "account-ui",
+      "to": "account-bridge",
+      "label": "认证管理操作",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelAt": [
+        1545,
+        270
+      ]
+    },
+    {
+      "id": "bridge-cpa",
+      "from": "account-bridge",
+      "to": "cpa",
+      "label": "管理合同",
+      "fromSide": "left",
+      "toSide": "right"
     }
   ]
 }

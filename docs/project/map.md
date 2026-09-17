@@ -2,7 +2,7 @@
 
 让 GPT 在 DSH 中使用熟悉的工具与协议，同时保留 DSH 的会话、外部环境、权限和任务管理。选择绑定提供商时自动启用，切换其他提供商时恢复普通 DSH 路线。
 
-**当前阶段：0.5.0-dev.3 副本接入与真实调用完成；Maintenance 扩展数据 Adapter 已部署验收。** 推理强度由模型能力声明。长任务与成本评估仍待验收，主实例未切换。
+**当前阶段：0.5.0-dev.3 副本接入与真实调用完成；Maintenance 扩展数据 Adapter 已部署验收。** 推理强度由模型能力声明。长任务与成本评估仍待验收，主实例未切换。可选 CPA 账号模块已接入副本，可查看 2 个账号的额度，固定代理需用户选择目标账号。
 
 ## 已经确定的行为
 
@@ -21,6 +21,7 @@
 | [文件与进程工具](records/modules/tools/overview.md) | Codex 风格工具、输出语义、句柄和取消；继续使用 DSH 权限链 | [工具呈现与生命周期](records/interfaces/profile.md) |
 | [协议与历史重放](records/modules/provider/overview.md) | API 声明、调用结果、特殊状态、CPA 原生压缩调用 | [上下文交付](records/interfaces/context.md) |
 | [两版压缩与切换接续](records/modules/context/overview.md) | 从同一历史构造两种上下文，分别计量、保存和接续 | [检查点与历史边界](records/interfaces/context.md) |
+| [CPA 账号与固定代理](records/modules/accounts/overview.md) | 设置区查看账号、额度与登录；显式固定一个账号，失败不换号 | [CPA 接入说明](../accounts.md) |
 
 绑定、工具、原生 Responses 协议、两版压缩控制与检查点接续已有代码；新版 CPA 原生压缩及恢复已经验收，副本 profile 已接入，Maintenance 扩展数据 Adapter 已在副本完成恢复和目录验收。整体组织图展示其边界；功能路径图展示一次请求的两种路由与失败保留行为。
 

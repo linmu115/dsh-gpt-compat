@@ -1,0 +1,16 @@
+{
+  "name": "dsh-gpt-compat-accounts",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "main": "lib/index.mjs",
+  "exports": { ".": "./lib/index.mjs", "./package.json": "./package.json" },
+  "files": ["lib", "cordis.patch.yml"],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/schemastery": "*",
+    "@deepseek-ai/dsh-credentials": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-connection": "0.1.5-rc.2"
+  }
+}

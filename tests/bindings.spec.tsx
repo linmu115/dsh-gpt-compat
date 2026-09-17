@@ -3,6 +3,7 @@ import React from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Bindings, type Props } from '../src/client/Bindings.tsx'
+vi.mock('../src/client/Accounts.tsx', () => ({ Accounts: () => null }))
 
 afterEach(cleanup)
 function props(save = vi.fn().mockResolvedValue(undefined)): Props {

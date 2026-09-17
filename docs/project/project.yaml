@@ -50,6 +50,13 @@
         ],
         "ordinary": [
           "IF-context"
+        ],
+        "account-ui": [
+          "MOD-accounts",
+          "VER-accounts"
+        ],
+        "account-bridge": [
+          "MOD-accounts"
         ]
       }
     },

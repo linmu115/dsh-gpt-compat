@@ -3,6 +3,7 @@ import { Button, Input, IconPlusOutline16 } from '@deepseek-ai/dsh-client-ui-pri
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
+import { Accounts } from './Accounts.tsx'
 
 export interface Binding { provider: string; models: string[] }
 export interface BindingSettings { bindings: Binding[] }
@@ -28,7 +29,7 @@ export function Bindings(props: Props) {
   }
   const writable = snapshot.status === 'ready' && snapshot.writable && !saving
   const { t } = props
-  return <section aria-labelledby={`${id}-title`} className="gpt-compat-settings" aria-busy={saving}>
+  return <><section aria-labelledby={`${id}-title`} className="gpt-compat-settings" aria-busy={saving}>
     <header className="gpt-compat-settings__heading">
       <h3 id={`${id}-title`}>{t('title')}</h3>
       <p className="gpt-compat-settings__intro">{t('description')}</p>
@@ -72,5 +73,5 @@ export function Bindings(props: Props) {
       }}>{saving ? t('saving') : t('save')}</Button>
       </div>
     </div>
-  </section>
+  </section><Accounts t={t} /></>
 }

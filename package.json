@@ -20,7 +20,8 @@
     "docs/context.md",
     "docs/qualification.md",
     "host-patches",
-    "docs/maintenance.md"
+    "docs/maintenance.md",
+    "docs/accounts.md"
   ],
   "dsh": {
     "bundle": {
@@ -64,6 +65,7 @@
     "@deepseek-ai/dsh-launch-environment": "0.1.5-rc.2"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-client-connection": "0.1.5-rc.2",
     "@deepseek-ai/dsh-client-ui-primitives": "0.1.5-rc.2",
     "typescript": "6.0.3",
     "vitest": "4.1.8",

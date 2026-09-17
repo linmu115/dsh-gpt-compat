@@ -15,6 +15,20 @@ const options = (): GenerateOptions => ({ provider: 'cpa', model: 'gpt-test', me
 const collect = async (stream: AsyncIterable<StreamChunk>) => { const result: StreamChunk[] = []; for await (const chunk of stream) result.push(chunk); return result }
 function config(url: string) { return Config({ providers: { cpa: { baseURL: url, apiKeyEnv: 'TEST_KEY', models: [{ id: 'gpt-test', contextWindow: 32000, maxTokens: 2000 }] } } }) }
 
+it('separates native replay scopes by CPA account and freezes account identity for each prepared call', async () => {
+  const server = await serve((_body, response) => sse(response, completed([textItem('done')])))
+  cleanup.push(server.close)
+  let identity = 'account-a'
+  const adapter = new ResponsesAdapter(() => config(server.url), async () => 'test-key', async () => identity)
+  const first = await adapter.prepareCall('cpa', 'gpt-test')
+  identity = 'account-b'
+  const second = await adapter.prepareCall('cpa', 'gpt-test')
+  expect(first.nativeContext!.scope).not.toBe(second.nativeContext!.scope)
+  await collect(first.stream(options()))
+  await collect(second.stream(options()))
+  expect(server.requests.map(r => r.headers['x-cpa-codex-account'])).toEqual(['account-a', 'account-b'])
+})
+
 it('publishes per-model reasoning choices and preserves the selected effort on the wire', async () => {
   const server = await serve((_body, response) => sse(response, completed([textItem('done')])))
   cleanup.push(server.close)

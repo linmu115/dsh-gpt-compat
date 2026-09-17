@@ -1,0 +1,6 @@
+- insert:
+    - id: gpt-compat-accounts
+      name: dsh-gpt-compat-accounts
+      config:
+        endpoint: http://127.0.0.1:8317
+        managementKeyRef: DSH_GPT_CPA_MANAGEMENT_KEY

@@ -1,5 +1,6 @@
 /** Opt-in Responses provider. Existing provider registrations are never replaced. */
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from './accounts/host.ts'
 import z from '@deepseek-ai/schemastery'
 import { assertUsableApiKey, LlmAdapter, LlmError } from '@deepseek-ai/dsh-llm'
 import { ReasoningEffortId } from '@deepseek-ai/dsh-llm/brand'
@@ -65,7 +66,8 @@ export function validateConfig(config: Config): void {
 
 /** Native wire entry point with a generation frozen at prepareCall, including endpoint and key reference. */
 export class ResponsesAdapter extends LlmAdapter {
-  constructor(private readonly config: () => Config, private readonly key: (profile: ProviderConfig) => Promise<string>) { super() }
+  constructor(private readonly config: () => Config, private readonly key: (profile: ProviderConfig) => Promise<string>,
+    private readonly account?: (endpoint: string) => Promise<string | undefined>) { super() }
   private snapshot(provider: string, model: string): { profile: ProviderConfig; model: LlmResolvedModelInfo } {
     const profile = structuredClone(this.config().providers[provider])
     if (!profile) throw new LlmError('Responses provider is no longer configured', 'NO_ADAPTER')
@@ -126,10 +128,13 @@ export class ResponsesAdapter extends LlmAdapter {
     signal?.throwIfAborted()
     const apiKey = await this.key(profile)
     signal?.throwIfAborted()
-    return { ...profile, apiKey }
+    const accountIdentity = await this.account?.(profile.baseURL)
+    signal?.throwIfAborted()
+    return { ...profile, apiKey, accountIdentity }
   }
   private origin(provider: string, model: string, connection: Connection, mode: ProviderConfig['nativeContextMode']): string {
     const base = [provider, model, connection.baseURL.replace(/\/+$/, ''), fingerprint(connection.apiKey)]
+    if (connection.accountIdentity) base.push('cpa-account', connection.accountIdentity)
     return fingerprint(mode === 'codex-v2' ? [...base, 'codex-v2'] : base)
   }
   private checkSize(profile: ProviderConfig, body: Item): void {
@@ -198,7 +203,7 @@ export function apply(ctx: Context, config: Config): void {
     const value = credentials ? (await credentials.resolve(ref))?.value : launchEnvironmentOf(ctx).get(ref)?.value
     if (value === undefined) throw new LlmError(`No credential configured for ${ref}`, 'MISSING_CREDENTIAL')
     return assertUsableApiKey(value, name, ref)
-  })
+  }, endpoint => ctx.get('gptCpaAccounts')?.identity(endpoint) ?? Promise.resolve(undefined))
   const registration = ctx.llm.registerAdapter(Object.keys(current.providers), adapter)
   const directoryEntries = (value: Config) => Object.keys(value.providers).map(provider => ({
     provider, displayName: provider, settingsNs: 'gpt-responses', settingsPath: ['providers', provider], declared: true,

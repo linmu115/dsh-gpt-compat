@@ -5,8 +5,10 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { Bindings, type BindingSettings, type Face } from './Bindings.tsx'
 import styles from './bindings.css?inline'
+import { accountEn, accountZh } from './Accounts.tsx'
 
 const en = {
+  ...accountEn,
   title: 'GPT compatibility', description: 'Enable compatible editing and command tools for the selected provider and models. Each conversation switches at its next step.',
   provider: 'Provider ID', models: 'Models', binding: 'Binding', remove: 'Remove', add: 'Add binding', save: 'Save', saving: 'Saving…', discard: 'Discard',
   unavailable: 'Compatibility settings are unavailable.', disabled: 'No bindings. Compatibility tools are disabled.',
@@ -14,6 +16,7 @@ const en = {
   refused: 'The settings were not saved or changed elsewhere. Keep this draft and try again after reloading.',
 }
 const zh: typeof en = {
+  ...accountZh,
   title: 'GPT 兼容工具', description: '为指定提供商和模型启用兼容的编辑与命令工具。每个会话在下一步自动切换。',
   provider: '提供商 ID', models: '模型', binding: '绑定', remove: '移除', add: '添加绑定', save: '保存', saving: '保存中…', discard: '放弃修改',
   unavailable: '兼容工具设置暂不可用。', disabled: '尚未绑定，兼容工具处于关闭状态。',

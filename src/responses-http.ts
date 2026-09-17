@@ -3,6 +3,7 @@ import { attributionHeaders, CONTEXT_WINDOW_EXCEEDED_CODE, QUOTA_EXCEEDED_CODE, 
 import { record, type Item } from './responses-wire.ts'
 
 export interface Connection {
+  accountIdentity?: string
   baseURL: string
   apiKey: string
   timeoutMs: number
@@ -48,7 +49,7 @@ export async function post(connection: Connection, path: 'responses' | 'response
   combined.throwIfAborted()
   const response = await fetch(`${connection.baseURL.replace(/\/+$/, '')}/${path}`, {
     method: 'POST', redirect: 'error', signal: combined,
-    headers: { ...attributionHeaders(), authorization: `Bearer ${connection.apiKey}`, 'content-type': 'application/json', accept: body.stream ? 'text/event-stream' : 'application/json' },
+    headers: { ...attributionHeaders(), ...(connection.accountIdentity ? { 'X-CPA-Codex-Account': connection.accountIdentity } : {}), authorization: `Bearer ${connection.apiKey}`, 'content-type': 'application/json', accept: body.stream ? 'text/event-stream' : 'application/json' },
     body: JSON.stringify(body),
   })
   if (!response.ok) {

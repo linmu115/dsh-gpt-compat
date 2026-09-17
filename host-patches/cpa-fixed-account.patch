@@ -1,0 +1,471 @@
+diff --git a/cmd/server/main.go b/cmd/server/main.go
+index 0d8cdece..877ea145 100644
+--- a/cmd/server/main.go
++++ b/cmd/server/main.go
+@@ -85,6 +85,7 @@ func main() {
+ 	var vertexImportPrefix string
+ 	var configPath string
+ 	var password string
++	var localManagementPasswordFile string
+ 	var homeJWT string
+ 	var homeDisableClusterDiscovery bool
+ 	var tuiMode bool
+@@ -104,6 +105,7 @@ func main() {
+ 	flag.StringVar(&vertexImport, "vertex-import", "", "Import Vertex service account key JSON file")
+ 	flag.StringVar(&vertexImportPrefix, "vertex-import-prefix", "", "Prefix for Vertex model namespacing (use with -vertex-import)")
+ 	flag.StringVar(&password, "password", "", "")
++	flag.StringVar(&localManagementPasswordFile, "local-management-password-file", "", "Read the localhost-only management password from a private file")
+ 	flag.StringVar(&homeJWT, "home-jwt", "", "Home control plane JWT for mTLS certificate bootstrap and connection")
+ 	flag.BoolVar(&homeDisableClusterDiscovery, "home-disable-cluster-discovery", false, "Disable Home CLUSTER NODES discovery and keep using the configured -home-jwt address")
+ 	flag.BoolVar(&tuiMode, "tui", false, "Start with terminal management UI")
+@@ -145,6 +147,14 @@ func main() {
+ 
+ 	// Parse the command-line flags.
+ 	flag.Parse()
++	if localManagementPasswordFile != "" {
++		data, errRead := os.ReadFile(localManagementPasswordFile)
++		if errRead != nil || len(data) > 4096 || strings.TrimSpace(string(data)) == "" || password != "" {
++			fmt.Fprintln(os.Stderr, "Invalid local management password file or conflicting password options")
++			return
++		}
++		password = strings.TrimSpace(string(data))
++	}
+ 
+ 	// Core application variables.
+ 	var err error
+@@ -752,7 +762,14 @@ func main() {
+ 			managementasset.StartAutoUpdater(context.Background(), configFilePath)
+ 			misc.StartAntigravityVersionUpdater(context.Background())
+ 			startModelCatalogUpdaters(localModel, cfg.Home.Enabled)
+-			cmd.StartServiceWithPluginHost(cfg, configFilePath, password, pluginHost, serverOptions...)
++			servicePassword := password
++			if localManagementPasswordFile != "" {
++				// File-based credentials serve persistent local integrations, not a
++				// desktop controller whose disappearance should stop the proxy.
++				serverOptions = append(serverOptions, api.WithLocalManagementPassword(password))
++				servicePassword = ""
++			}
++			cmd.StartServiceWithPluginHost(cfg, configFilePath, servicePassword, pluginHost, serverOptions...)
+ 		}
+ 	}
+ }
+diff --git a/docs/codex-fixed-account.md b/docs/codex-fixed-account.md
+new file mode 100644
+index 00000000..9ab74278
+--- /dev/null
++++ b/docs/codex-fixed-account.md
+@@ -0,0 +1,56 @@
++# Fixed Codex account extension
++
++Local extension for the DSH GPT account panel, based on commit
++`ba200aefa0c657a3390f278e74a21708b3589a5c`. This is not an upstream CPA feature claim.
++
++`routing.codex-account` selects one stable `auth_index` from the Codex credentials.
++An empty value preserves existing routing; `paused` rejects new Codex requests.
++Any other value pins ordinary, streaming, and token-count execution to that
++account before retries. Missing, disabled, quota-limited, or failed accounts do
++not fall back to other accounts. Other providers retain their existing routing.
++Home dispatch is unsupported with this policy and fails closed.
++
++The selection is global to this CPA process and persists in its configuration.
++Requests already dispatched retain their captured account. Adding credentials
++does not change an existing fixed selection. Removing the selected credential
++must first pause the proxy; remaining credentials are not selected automatically.
++
++## Management contract
++
++These routes use existing CPA management authentication:
++
++- `GET /v0/management/routing/codex-account` returns `contract:
++  "codex-fixed-account/v1"`, `auth_index`, and `fixed`.
++- `PUT` at the same path accepts `{ "auth_index": "<index or paused>",
++  "expected": "<previous selection>" }`. The target must exist unless paused.
++  A stale expected selection returns 409. Configuration is persisted and reloaded
++  before success is returned. Empty targets are rejected; the panel cannot turn
++  rotation back on accidentally.
++- Inference requests may supply `X-CPA-Codex-Account` with their prepared account
++  identity. A different current selection returns 409 instead of delivering
++  account-scoped encrypted history to a newly selected account.
++
++OAuth login, credential listing/removal, and account-scoped quota retrieval use
++CPA's existing management endpoints. OAuth credentials remain owned by CPA.
++Known consumer: `dsh-gpt-compat-accounts` 0.1.0 in
++<https://github.com/linmu115/dsh-gpt-compat>, documented in `docs/accounts.md`.
++
++## Persistent localhost management credential
++
++`--local-management-password-file <private-file>` reads a nonempty password of
++at most 4096 bytes and makes it valid only for localhost management requests.
++The existing configured management password remains valid and unchanged.
++This option cannot be combined with the existing password flag.
++Restrict the file to its owning user and system services; never commit it.
++
++For ordinary server startup this file option does not activate the existing
++desktop controller's 10-second keep-alive shutdown. Existing password-flag and
++TUI behavior remain unchanged. Start future server instances with the same file
++option; launching without it will not accept the additional credential.
++
++## Verification and upgrade boundary
++
++Tests cover pinned execution, streaming failures, count failures, paused/missing
++accounts, stale prepared requests, and compare-and-swap configuration changes.
++This does not promise account safety or avoidance of service enforcement.
++Reapply and validate the extension when replacing CPA with an upstream build.
+diff --git a/internal/api/handlers/management/codex_account.go b/internal/api/handlers/management/codex_account.go
+new file mode 100644
+index 00000000..bbf26f69
+--- /dev/null
++++ b/internal/api/handlers/management/codex_account.go
+@@ -0,0 +1,53 @@
++package management
++
++import (
++	"net/http"
++	"strings"
++
++	"github.com/gin-gonic/gin"
++)
++
++// GetCodexAccount returns policy identity only, never authentication material.
++func (h *Handler) GetCodexAccount(c *gin.Context) {
++	h.mu.Lock()
++	selected := h.cfg.Routing.CodexAccount
++	h.mu.Unlock()
++	c.JSON(http.StatusOK, gin.H{"auth_index": selected, "fixed": selected != "", "contract": "codex-fixed-account/v1"})
++}
++
++// PutCodexAccount uses compare-and-swap so stale panels cannot overwrite a
++// newer selection. Pausing retains credentials and forbids automatic fallback.
++func (h *Handler) PutCodexAccount(c *gin.Context) {
++	var body struct {
++		AuthIndex string  `json:"auth_index"`
++		Expected  *string `json:"expected"`
++	}
++	if c.ShouldBindJSON(&body) != nil || body.Expected == nil || strings.TrimSpace(body.AuthIndex) == "" {
++		c.JSON(http.StatusBadRequest, gin.H{"error": "auth_index and expected are required"})
++		return
++	}
++	if body.AuthIndex != "paused" {
++		target := h.authByIndex(body.AuthIndex)
++		if target == nil || target.Provider != "codex" {
++			c.JSON(http.StatusBadRequest, gin.H{"error": "selected Codex account does not exist"})
++			return
++		}
++	}
++	h.mu.Lock()
++	old := h.cfg.Routing.CodexAccount
++	if old != *body.Expected {
++		h.mu.Unlock()
++		c.JSON(http.StatusConflict, gin.H{"error": "account selection changed; refresh before retrying"})
++		return
++	}
++	h.cfg.Routing.CodexAccount = body.AuthIndex
++	snapshot, ok := h.saveConfigAndSnapshotLocked(c)
++	if !ok {
++		h.cfg.Routing.CodexAccount = old
++		h.mu.Unlock()
++		return
++	}
++	h.mu.Unlock()
++	h.reloadConfigAfterManagementSave(c.Request.Context(), snapshot)
++	c.JSON(http.StatusOK, gin.H{"status": "ok", "auth_index": body.AuthIndex})
++}
+diff --git a/internal/api/handlers/management/codex_account_test.go b/internal/api/handlers/management/codex_account_test.go
+new file mode 100644
+index 00000000..1e4ced66
+--- /dev/null
++++ b/internal/api/handlers/management/codex_account_test.go
+@@ -0,0 +1,54 @@
++package management
++
++import (
++	"context"
++	"net/http/httptest"
++	"os"
++	"path/filepath"
++	"strings"
++	"testing"
++
++	"github.com/gin-gonic/gin"
++	"github.com/router-for-me/CLIProxyAPI/v7/internal/config"
++	coreauth "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/auth"
++)
++
++func TestCodexAccountSelectionPersistsAndRejectsStale(t *testing.T) {
++	m := coreauth.NewManager(nil, nil, nil)
++	a := &coreauth.Auth{ID: "account-file", Provider: "codex"}
++	a.EnsureIndex()
++	if _, err := m.Register(context.Background(), a); err != nil {
++		t.Fatal(err)
++	}
++	path := filepath.Join(t.TempDir(), "config.yaml")
++	if err := os.WriteFile(path, []byte("routing:\n  strategy: round-robin\n"), 0600); err != nil {
++		t.Fatal(err)
++	}
++	cfg := &config.Config{}
++	h := NewHandler(cfg, path, m)
++	h.SetConfigReloadHook(func(_ context.Context, snapshot *config.Config) { m.SetConfig(snapshot) })
++	put := func(body string) int {
++		r := httptest.NewRecorder()
++		c, _ := gin.CreateTestContext(r)
++		c.Request = httptest.NewRequest("PUT", "/routing/codex-account", strings.NewReader(body))
++		c.Request.Header.Set("Content-Type", "application/json")
++		h.PutCodexAccount(c)
++		return r.Code
++	}
++	if code := put(`{"auth_index":"` + a.Index + `","expected":""}`); code != 200 {
++		t.Fatalf("select: %d", code)
++	}
++	data, _ := os.ReadFile(path)
++	if !strings.Contains(string(data), a.Index) {
++		t.Fatal("selection not persisted")
++	}
++	if code := put(`{"auth_index":"paused","expected":""}`); code != 409 {
++		t.Fatalf("stale: %d", code)
++	}
++	if cfg.Routing.CodexAccount != a.Index {
++		t.Fatal("stale write overwrote selection")
++	}
++	if code := put(`{"auth_index":"paused","expected":"` + a.Index + `"}`); code != 200 {
++		t.Fatalf("pause: %d", code)
++	}
++}
+diff --git a/internal/api/server_management.go b/internal/api/server_management.go
+index fef08895..987b6d80 100644
+--- a/internal/api/server_management.go
++++ b/internal/api/server_management.go
+@@ -75,6 +75,8 @@ func (s *Server) registerManagementRoutes() {
+ 		mgmt.PUT("/quota-exceeded/switch-preview-model", s.mgmt.PutSwitchPreviewModel)
+ 		mgmt.PATCH("/quota-exceeded/switch-preview-model", s.mgmt.PutSwitchPreviewModel)
+ 		mgmt.POST("/reset-quota", s.mgmt.ResetQuota)
++		mgmt.GET("/routing/codex-account", s.mgmt.GetCodexAccount)
++		mgmt.PUT("/routing/codex-account", s.mgmt.PutCodexAccount)
+ 
+ 		mgmt.GET("/api-keys", s.mgmt.GetAPIKeys)
+ 		mgmt.PUT("/api-keys", s.mgmt.PutAPIKeys)
+diff --git a/internal/config/config_types.go b/internal/config/config_types.go
+index 6228284c..481469f7 100644
+--- a/internal/config/config_types.go
++++ b/internal/config/config_types.go
+@@ -231,6 +231,10 @@ type QuotaExceeded struct {
+ 
+ // RoutingConfig configures how credentials are selected for requests.
+ type RoutingConfig struct {
++	// CodexAccount pins every Codex request to this stable auth index. A missing,
++	// disabled, or exhausted selected account fails closed instead of failing over.
++	// Empty preserves upstream routing; "paused" rejects all Codex requests.
++	CodexAccount string `yaml:"codex-account,omitempty" json:"codex-account,omitempty"`
+ 	// Strategy selects the credential selection strategy.
+ 	// Supported values: "round-robin" (default), "weighted-round-robin", "fill-first".
+ 	Strategy string `yaml:"strategy,omitempty" json:"strategy,omitempty"`
+diff --git a/sdk/api/handlers/handlers.go b/sdk/api/handlers/handlers.go
+index cf31c5e0..2391209a 100644
+--- a/sdk/api/handlers/handlers.go
++++ b/sdk/api/handlers/handlers.go
+@@ -170,6 +170,11 @@ func requestExecutionMetadata(ctx context.Context) map[string]any {
+ 	}
+ 
+ 	meta := make(map[string]any)
++	if ginCtx != nil {
++		if expected := strings.TrimSpace(ginCtx.GetHeader("X-CPA-Codex-Account")); expected != "" {
++			meta["expected_codex_account"] = expected
++		}
++	}
+ 	if key != "" {
+ 		meta[idempotencyKeyMetadataKey] = key
+ 	}
+diff --git a/sdk/cliproxy/auth/codex_account.go b/sdk/cliproxy/auth/codex_account.go
+new file mode 100644
+index 00000000..cda5449b
+--- /dev/null
++++ b/sdk/cliproxy/auth/codex_account.go
+@@ -0,0 +1,46 @@
++package auth
++
++import (
++	"strings"
++
++	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/executor"
++)
++
++// pinCodexAccount snapshots the operator's selection once, before retries or
++// home dispatch. Existing pinned-auth execution then excludes every other ID.
++func (m *Manager) pinCodexAccount(providers []string, opts cliproxyexecutor.Options) (cliproxyexecutor.Options, error) {
++	cfg := m.runtimeConfigSnapshot()
++	if cfg == nil {
++		return opts, nil
++	}
++	codex := false
++	for _, provider := range providers {
++		codex = codex || strings.EqualFold(strings.TrimSpace(provider), "codex")
++	}
++	if !codex {
++		return opts, nil
++	}
++	selected := cfg.Routing.CodexAccount
++	if expected, _ := opts.Metadata["expected_codex_account"].(string); expected != "" && expected != selected {
++		return opts, &Error{Code: "codex_account_changed", Message: "Codex account changed after the request was prepared", HTTPStatus: 409}
++	}
++	if selected == "" {
++		return opts, nil
++	}
++	if selected == "paused" || m.HomeEnabled() {
++		return opts, &Error{Code: "codex_account_unavailable", Message: "selected Codex account is paused or unavailable in this runtime"}
++	}
++	for _, account := range m.List() {
++		if account.Provider != "codex" || account.Index != selected || account.Disabled {
++			continue
++		}
++		metadata := make(map[string]any, len(opts.Metadata)+1)
++		for key, value := range opts.Metadata {
++			metadata[key] = value
++		}
++		metadata[cliproxyexecutor.PinnedAuthMetadataKey] = account.ID
++		opts.Metadata = metadata
++		return opts, nil
++	}
++	return opts, &Error{Code: "codex_account_unavailable", Message: "selected Codex account is missing or disabled; automatic account switching is off"}
++}
+diff --git a/sdk/cliproxy/auth/codex_account_test.go b/sdk/cliproxy/auth/codex_account_test.go
+new file mode 100644
+index 00000000..fbc5bf23
+--- /dev/null
++++ b/sdk/cliproxy/auth/codex_account_test.go
+@@ -0,0 +1,97 @@
++package auth
++
++import (
++	"context"
++	"net/http"
++	"testing"
++
++	"github.com/google/uuid"
++	"github.com/router-for-me/CLIProxyAPI/v7/internal/config"
++	"github.com/router-for-me/CLIProxyAPI/v7/internal/registry"
++	executor "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/executor"
++)
++
++func TestFixedCodexAccountNeverFallsBack(t *testing.T) {
++	for _, kind := range []string{"execute", "stream", "count"} {
++		t.Run(kind, func(t *testing.T) {
++			m := NewManager(nil, &RoundRobinSelector{}, nil)
++			m.SetRetryConfig(0, 0, 0)
++			first := &Auth{ID: uuid.NewString(), Provider: "codex", Status: StatusActive}
++			other := &Auth{ID: uuid.NewString(), Provider: "codex", Status: StatusActive}
++			for _, auth := range []*Auth{first, other} {
++				auth.EnsureIndex()
++				registry.GetGlobalRegistry().RegisterClient(auth.ID, "codex", []*registry.ModelInfo{{ID: "gpt-fixed-test"}})
++				t.Cleanup(func() { registry.GetGlobalRegistry().UnregisterClient(auth.ID) })
++				if _, err := m.Register(context.Background(), auth); err != nil {
++					t.Fatal(err)
++				}
++			}
++			m.SetConfig(&config.Config{Routing: config.RoutingConfig{CodexAccount: first.Index}})
++			failure := &Error{HTTPStatus: http.StatusTooManyRequests, Message: "quota exhausted"}
++			e := &authFallbackExecutor{id: "codex", executeErrors: map[string]error{first.ID: failure}, streamFirstErrors: map[string]error{first.ID: failure}, countTokenErrors: map[string]error{first.ID: failure}}
++			m.RegisterExecutor(e)
++			request := executor.Request{Model: "gpt-fixed-test"}
++			var err error
++			switch kind {
++			case "execute":
++				_, err = m.Execute(context.Background(), []string{"codex"}, request, executor.Options{})
++			case "stream":
++				var result *executor.StreamResult
++				result, err = m.ExecuteStream(context.Background(), []string{"codex"}, request, executor.Options{})
++				if result != nil {
++					for chunk := range result.Chunks {
++						if chunk.Err != nil {
++							err = chunk.Err
++						}
++						if len(chunk.Payload) > 0 {
++							t.Fatal("unexpected successful payload after quota error")
++						}
++					}
++				}
++			case "count":
++				_, err = m.ExecuteCount(context.Background(), []string{"codex"}, request, executor.Options{})
++			}
++			if err == nil {
++				t.Fatal("exhausted selected account unexpectedly succeeded via fallback")
++			}
++			for _, id := range append(e.executeCalls, e.streamCalls...) {
++				if id != first.ID {
++					t.Fatalf("used standby account %q", id)
++				}
++			}
++		})
++	}
++}
++
++func TestFixedCodexAccountSnapshotAndPause(t *testing.T) {
++	m := NewManager(nil, nil, nil)
++	a := &Auth{ID: "fixed-snapshot", Provider: "codex"}
++	a.EnsureIndex()
++	if _, err := m.Register(context.Background(), a); err != nil {
++		t.Fatal(err)
++	}
++	m.SetConfig(&config.Config{Routing: config.RoutingConfig{CodexAccount: a.Index}})
++	metadata := map[string]any{executor.PinnedAuthMetadataKey: "stale-websocket-binding"}
++	opts, err := m.pinCodexAccount([]string{"codex"}, executor.Options{Metadata: metadata})
++	if err != nil || opts.Metadata[executor.PinnedAuthMetadataKey] != a.ID {
++		t.Fatal("selection did not override old session pin", err)
++	}
++	if metadata[executor.PinnedAuthMetadataKey] != "stale-websocket-binding" {
++		t.Fatal("mutated caller metadata")
++	}
++	if _, err := m.pinCodexAccount([]string{"codex"}, executor.Options{Metadata: map[string]any{"expected_codex_account": "old-account"}}); err == nil {
++		t.Fatal("accepted stale prepared account")
++	}
++	for _, selected := range []string{"paused", "missing-account"} {
++		m.SetConfig(&config.Config{Routing: config.RoutingConfig{CodexAccount: selected}})
++		if _, err := m.pinCodexAccount([]string{"codex"}, executor.Options{}); err == nil {
++			t.Fatal("must fail closed")
++		}
++		if _, err := m.pinCodexAccount([]string{"claude"}, executor.Options{}); err != nil {
++			t.Fatal("changed another provider")
++		}
++	}
++	if opts.Metadata[executor.PinnedAuthMetadataKey] != a.ID {
++		t.Fatal("in-flight snapshot changed")
++	}
++}
+diff --git a/sdk/cliproxy/auth/conductor_execution.go b/sdk/cliproxy/auth/conductor_execution.go
+index c7dcebe2..41f5cb78 100644
+--- a/sdk/cliproxy/auth/conductor_execution.go
++++ b/sdk/cliproxy/auth/conductor_execution.go
+@@ -43,6 +43,11 @@ func claudeOAuthRequestCancellation(ctx context.Context, auth *Auth, err error)
+ // Execute performs a non-streaming execution using the configured selector and executor.
+ // It supports multiple providers for the same model and round-robins the starting provider per model.
+ func (m *Manager) Execute(ctx context.Context, providers []string, req cliproxyexecutor.Request, opts cliproxyexecutor.Options) (cliproxyexecutor.Response, error) {
++	var pinErr error
++	opts, pinErr = m.pinCodexAccount(providers, opts)
++	if pinErr != nil {
++		return cliproxyexecutor.Response{}, pinErr
++	}
+ 	req, opts = cliproxysession.Enrich(req, opts)
+ 	normalized := m.normalizeProviders(providers)
+ 	if len(normalized) == 0 {
+@@ -90,6 +95,11 @@ func (m *Manager) Execute(ctx context.Context, providers []string, req cliproxye
+ 
+ // It supports multiple providers for the same model and round-robins the starting provider per model.
+ func (m *Manager) ExecuteCount(ctx context.Context, providers []string, req cliproxyexecutor.Request, opts cliproxyexecutor.Options) (cliproxyexecutor.Response, error) {
++	var pinErr error
++	opts, pinErr = m.pinCodexAccount(providers, opts)
++	if pinErr != nil {
++		return cliproxyexecutor.Response{}, pinErr
++	}
+ 	req, opts = cliproxysession.Enrich(req, opts)
+ 	normalized := m.normalizeProviders(providers)
+ 	if len(normalized) == 0 {
+@@ -130,6 +140,11 @@ func (m *Manager) ExecuteCount(ctx context.Context, providers []string, req clip
+ // ExecuteStream performs a streaming execution using the configured selector and executor.
+ // It supports multiple providers for the same model and round-robins the starting provider per model.
+ func (m *Manager) ExecuteStream(ctx context.Context, providers []string, req cliproxyexecutor.Request, opts cliproxyexecutor.Options) (*cliproxyexecutor.StreamResult, error) {
++	var pinErr error
++	opts, pinErr = m.pinCodexAccount(providers, opts)
++	if pinErr != nil {
++		return nil, pinErr
++	}
+ 	req, opts = cliproxysession.Enrich(req, opts)
+ 	if m.HomeEnabled() {
+ 		if unlockSession := m.lockHomeWebsocketSession(ctx, opts); unlockSession != nil {

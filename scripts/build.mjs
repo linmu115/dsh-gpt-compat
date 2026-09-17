@@ -4,6 +4,7 @@ import { runInNewContext } from 'node:vm'
 import assert from 'node:assert/strict'
 import { resolve, dirname } from 'node:path'
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+await build({ entry: { index: 'src/accounts/host.ts' }, outDir: 'packages/accounts/lib', format: 'esm', dts: false, deps: { neverBundle: [/^@deepseek-ai\//] }, clean: false })
 await build({ entry: { index: 'src/index.ts', responses: 'src/responses.ts' }, outDir: 'lib', format: 'esm', dts: false, deps: { neverBundle: Object.keys(pkg.peerDependencies) }, clean: false })
 // DSH concatenates plugin assets into a classic script. Register a closure
 // factory so externals come from its shared module table, not ESM imports.
