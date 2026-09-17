@@ -121,7 +121,12 @@ export async function selectContext(ctx: Context, agent: Agent, request: Generat
   const allGroups = balancedGroups(raw)
   // Current user input and the most recent completed interaction stay verbatim.
   const retained = allGroups.slice(-policy.retainGroups).flat().length
-  const maxCovered = raw.length - retained
+  // Keep the current human input and all material injected after it verbatim.
+  // A reference context is a separate message, so retainGroups alone can split
+  // it from its target (or compact the input when retainGroups is set to one).
+  const pendingUser = request.messages.findLast(message => message.role === 'user' && message.source.kind === 'user')
+  const currentUser = pendingUser ? raw.findIndex(message => message.id === pendingUser.id) : -1
+  const maxCovered = Math.min(raw.length - retained, currentUser < 0 ? raw.length : currentUser)
   if (covered > maxCovered) { covered = 0; prefix = []; summary = undefined }
   const nativeInput = (tail: Message[]) => [...prefix, ...capability!.encode(tail)]
   const nativeOptions = { ...request, messages: systems }
