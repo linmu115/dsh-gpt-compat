@@ -4,8 +4,9 @@ import type {} from '@deepseek-ai/dsh-client-connection'
 import { matches, type Config } from './config.ts'
 
 export type ProgressPhase = 'preparing' | 'compressing' | 'ready' | 'sent' | 'failed' | 'cancelled'
-export interface ProgressData { id: string; phase: ProgressPhase; text: string; pass: number; startedAt: number; updatedAt: number; preview: boolean; error?: string; anchorSeq?: number }
+export interface ProgressData { id: string; phase: ProgressPhase; text: string; pass: number; startedAt: number; updatedAt: number; preview: boolean; error?: string; anchorSeq?: number; operationSeq?: number }
 export interface ProgressHandle {
+  operation(seq: number): void
   update(phase: ProgressPhase, pass?: number): void
   finish(result: { kind: string; message?: string; userMessageId?: string }): void
 }
@@ -28,6 +29,7 @@ export class SubmissionProgress {
     let data: ProgressData = { id: input.clientSubmissionId, phase: 'preparing', text: input.text, pass: 0, startedAt: Date.now(), updatedAt: Date.now(), preview }
     const publish = () => { data = { ...data, updatedAt: Date.now() }; this.snapshots.set(String(agent.id), data) }
     const handle: ProgressHandle = {
+      operation: operationSeq => { data = { ...data, operationSeq }; publish() },
       update: (phase, pass = data.pass) => { data = { ...data, phase, pass }; publish() },
       finish: result => {
         if (this.active.get(agent) !== handle) return

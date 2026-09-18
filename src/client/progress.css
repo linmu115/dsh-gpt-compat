@@ -8,3 +8,8 @@
 .gpt-context-progress p{margin:5px 0 0 22px}.gpt-context-error{opacity:1!important}
 @keyframes gpt-context-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.gpt-context-spinner{animation:none}}
+.gpt-context-trace{margin:12px 0;font-size:14px;line-height:1.5;color:inherit}
+.gpt-context-trace summary{cursor:pointer;min-height:32px;padding:6px 0}
+.gpt-context-trace summary:focus-visible{outline:2px solid currentColor;outline-offset:3px;border-radius:4px}
+.gpt-context-trace p{margin:6px 0;font-size:12px;opacity:.75}
+.gpt-context-trace>div{padding:0 0 4px 18px;border-left:1px solid color-mix(in srgb,currentColor 20%,transparent)}

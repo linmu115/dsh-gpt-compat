@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useProgress } from './progress-store.ts'
 import type { ProgressData } from '../progress.ts'
 
 export function ProgressCard({ value, elapsed, disconnected = false }: { value: ProgressData; elapsed: number; disconnected?: boolean }) {
@@ -25,27 +25,7 @@ export function ProgressCard({ value, elapsed, disconnected = false }: { value: 
 }
 
 export function ContextProgress({ sessionId }: { sessionId: string }) {
-  const [value, setValue] = useState<ProgressData | null>(null)
-  const [elapsed, setElapsed] = useState(0)
-  const [disconnected, setDisconnected] = useState(false)
-  useEffect(() => {
-    let stopped = false, timer: ReturnType<typeof setTimeout> | undefined
-    const abort = new AbortController()
-    setValue(null); setDisconnected(false)
-    const poll = async () => {
-      try {
-        const response = await fetch('/api/gpt-compat.progress', { method: 'POST', credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId }), signal: abort.signal })
-        if (!response.ok) throw new Error('Progress unavailable')
-        const next = await response.json() as ProgressData | null
-        if (stopped) return
-        setValue(next); setDisconnected(false)
-        setElapsed(next ? Math.max(0, Math.floor((Date.now() - next.startedAt) / 1000)) : 0)
-      } catch { if (!stopped) setDisconnected(true) }
-      finally { if (!stopped) timer = setTimeout(poll, document.visibilityState === 'hidden' ? 5000 : 1000) }
-    }
-    void poll()
-    return () => { stopped = true; abort.abort(); clearTimeout(timer) }
-  }, [sessionId])
-  return value && <ProgressCard value={value} elapsed={elapsed} disconnected={disconnected} />
+  const { value, elapsed, disconnected } = useProgress(sessionId)
+  if (!value || value.phase === 'sent' || value.operationSeq !== undefined) return null
+  return <ProgressCard value={value} elapsed={elapsed} disconnected={disconnected} />
 }

@@ -181,10 +181,11 @@ async function selectContextInternal(ctx: Context, agent: Agent, request: Genera
         provider: request.provider, model: request.model, format: capability!.format, scope: capability!.scope,
         input, instructions: systems,
       } as unknown as JsonValue })
+      progress?.operation(operation.seq)
       if (!await ctx.sessions.flush(agent.session)) return fail('Compaction requires durable operation logging')
       prefix = await capability!.compact(nativeOptions, input)
       agent.session.append('context/operation-result', { operation: operation.seq, output: prefix })
-    } else summary = await summarize(ctx, agent, request, summaryCall!, [...summary ? [summary] : [], ...chunk])
+    } else summary = await summarize(ctx, agent, request, summaryCall!, [...summary ? [summary] : [], ...chunk], progress)
     covered += chunk.length
     changed = true
   }
@@ -203,11 +204,12 @@ async function selectContextInternal(ctx: Context, agent: Agent, request: Genera
     : { messages: [...systems, ...summary ? [summary] : [], ...raw.slice(covered)] }
 }
 
-async function summarize(ctx: Context, agent: Agent, request: GenerateOptions, call: PreparedLlmCall, messages: Message[]): Promise<Message> {
+async function summarize(ctx: Context, agent: Agent, request: GenerateOptions, call: PreparedLlmCall, messages: Message[], progress?: import('./progress.ts').ProgressHandle): Promise<Message> {
   const instruction = createUserMessage({ content: [{ type: 'text', text: SUMMARY }], source: { kind: 'plugin', plugin: 'gpt-compat' } })
   let text = '', stopped = false
   const options = { ...call.config, messages: [instruction, ...messages], purpose: 'compaction' as const }
   const operation = agent.session.append('context/operation', { kind: 'portable-summary', request: options as unknown as JsonValue })
+  progress?.operation(operation.seq)
   if (!await ctx.sessions.flush(agent.session)) return fail('Compaction requires durable operation logging')
   for await (const chunk of call.stream({ ...options, signal: request.signal })) {
     if (chunk.type === 'block-end' && chunk.block.type === 'text') text += chunk.block.text

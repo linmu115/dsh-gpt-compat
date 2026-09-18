@@ -1,4 +1,5 @@
 import { ContextProgress } from './Progress.tsx'
+import { installCompactionTrace } from './Compaction.tsx'
 import progressStyles from './progress.css?inline'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
@@ -35,6 +36,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 export const inject = ['slots', 'locale', 'settingsScope', 'remote', 'remote.session']
 export function apply(ctx: Context): void {
+  installCompactionTrace(ctx)
   // The development host may only emit owner types, without generated Remote declarations.
   const remote = ctx.remote as typeof ctx.remote & { session: { modelCatalog(): Promise<{ ok: true; value: ModelCatalog } | { ok: false }> } }
   ctx.effect(() => {
