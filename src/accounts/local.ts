@@ -1,17 +1,30 @@
 import { spawn, execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { open, stat, unlink } from 'node:fs/promises'
-import { dirname, isAbsolute } from 'node:path'
+import { dirname, win32 } from 'node:path'
 import { connect } from 'node:net'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { AccountError } from './cpa.ts'
 
 export interface LocalLaunchConfig { executable: string; configFile: string; passwordFile: string }
 export type LocalState = 'running' | 'stopped' | 'starting' | 'unavailable'
-export interface LocalStatus { state: LocalState; canStart: boolean }
+export interface LocalStatus { state: LocalState; canStart: boolean; issue?: string }
 interface Runtime {
   probe(endpoint: string): Promise<LocalState>
   launch(config: LocalLaunchConfig): Promise<void>
+  check?(config: LocalLaunchConfig): Promise<string | undefined>
+}
+
+export function normalizeLocalLaunch(config: LocalLaunchConfig): LocalLaunchConfig {
+  return { executable: win32.normalize(config.executable), configFile: win32.normalize(config.configFile), passwordFile: win32.normalize(config.passwordFile) }
+}
+export async function checkLocalLaunch(config: LocalLaunchConfig): Promise<string | undefined> {
+  if (process.platform !== 'win32') return 'localUnsupported'
+  if (![config.executable, config.configFile, config.passwordFile].every(path => win32.isAbsolute(path)) || !config.executable.toLowerCase().endsWith('.exe')) return 'localConfigInvalid'
+  for (const [path, issue] of [[config.executable, 'localExecutableMissing'], [config.configFile, 'localConfigMissing'], [config.passwordFile, 'localPasswordMissing']]) {
+    try { if (!(await stat(path!)).isFile()) return issue }
+    catch { return issue }
+  }
 }
 
 // A listening port alone is not proof that CPA is ready. The public root has
@@ -45,10 +58,9 @@ export async function probeLocal(endpoint: string): Promise<LocalState> {
 }
 
 async function launchLocal(config: LocalLaunchConfig): Promise<void> {
-  if (process.platform !== 'win32') throw new AccountError('localUnsupported')
-  if (![config.executable, config.configFile, config.passwordFile].every(isAbsolute) || !config.executable.toLowerCase().endsWith('.exe')) throw new AccountError('localConfigInvalid')
-  try { for (const path of [config.executable, config.configFile, config.passwordFile]) if (!(await stat(path)).isFile()) throw new Error() }
-  catch { throw new AccountError('localConfigInvalid') }
+  const issue = await checkLocalLaunch(config)
+  if (issue) throw new AccountError(issue)
+  config = normalizeLocalLaunch(config)
   // Also serialize separate DSH instances sharing this CPA executable. A stale
   // lock is reported, never silently removed while another owner might launch.
   const lockPath = config.executable + '.dsh-start.lock'
@@ -73,13 +85,16 @@ async function launchLocal(config: LocalLaunchConfig): Promise<void> {
 export class LocalCpa {
   private pending?: Promise<LocalStatus>
   readonly endpoint: string
-  constructor(endpoint: string, private config?: LocalLaunchConfig, private runtime: Runtime = { probe: probeLocal, launch: launchLocal }, private waitMs = 20000) {
+  constructor(endpoint: string, private config?: LocalLaunchConfig, private runtime: Runtime = { probe: probeLocal, launch: launchLocal, check: checkLocalLaunch }, private waitMs = 20000) {
     const url = new URL(endpoint)
     if (url.protocol !== 'http:' || !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) || url.username || url.password || url.pathname !== '/' || url.search || url.hash) throw new AccountError('invalidEndpoint')
     this.endpoint = url.origin
   }
   async status(): Promise<LocalStatus> {
-    return { state: this.pending ? 'starting' : await this.runtime.probe(this.endpoint), canStart: !!this.config?.executable && !!this.config.configFile && !!this.config.passwordFile }
+    const state = this.pending ? 'starting' : await this.runtime.probe(this.endpoint)
+    const configured = !!this.config?.executable && !!this.config.configFile && !!this.config.passwordFile
+    const issue = configured && state === 'stopped' ? await this.runtime.check?.(this.config!) : undefined
+    return { state, canStart: configured && !issue, ...(issue ? { issue } : {}) }
   }
   start(): Promise<LocalStatus> {
     if (this.pending) return this.pending

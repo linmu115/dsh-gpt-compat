@@ -11,6 +11,7 @@ export const accountEn = {
   localUnsupported: 'Local startup currently supports Windows hosts only.', localLaunchFailed: 'Could not start CPA. Check local startup permissions and configuration.',
   localStartTimeout: 'CPA did not become ready in time. Check its logs and refresh the status; an existing process will not be started again.',
   localUpgradeRequired: 'The startup module is installed but the running DSH instance must be restarted normally to enable it.',
+  localExecutableMissing: 'The configured CPA program is missing or inaccessible.', localConfigMissing: 'The configured CPA configuration file is missing or inaccessible.', localPasswordMissing: 'The configured local management password file is missing or inaccessible.',
   accountTitle: 'CPA accounts', accountHint: 'Keep multiple accounts signed in, and proxy through one selected account. No automatic failover. This selection applies to all clients using this CPA.',
   refreshAccounts: 'Refresh accounts', connectAccount: 'Connect CPA', managementKey: 'CPA management key', keyHint: 'Use the CPA management password, not a model API key. Stored in DSH credentials; never sent to the model.',
   changeKey: 'Connection settings', accountCurrent: 'Current proxy account', accountStandby: 'Standby', accountDisabled: 'Disabled', accountUnavailable: 'Unavailable',
@@ -38,6 +39,7 @@ export const accountZh: Record<AccountKey, string> = {
   localUnsupported: '本机启动目前仅支持 Windows 宿主。', localLaunchFailed: '未能启动 CPA，请检查本机权限与启动配置。',
   localStartTimeout: 'CPA 未在规定时间内就绪。请检查其日志并刷新状态；已存在的进程不会重复启动。',
   localUpgradeRequired: '启动模块已安装，当前 DSH 实例需要正常重启后才能启用。',
+  localExecutableMissing: '配置的 CPA 程序不存在或无法访问。', localConfigMissing: '配置的 CPA 配置文件不存在或无法访问。', localPasswordMissing: '配置的本机管理密码文件不存在或无法访问。',
   accountTitle: 'CPA 账号', accountHint: '可保存多个已登录账号，代理只使用你指定的一个，不自动换号。此选择对使用这台 CPA 的所有客户端生效。',
   refreshAccounts: '刷新账号', connectAccount: '连接 CPA', managementKey: 'CPA 管理密钥', keyHint: '填写 CPA 管理页的密码，不是模型 API Key。保存在 DSH 凭据中，不会发送给模型。',
   changeKey: '连接设置', accountCurrent: '当前代理账号', accountStandby: '待用', accountDisabled: '已停用', accountUnavailable: '暂不可用',
@@ -140,7 +142,7 @@ export function Accounts({ t, onChanged }: { t: (key: AccountKey) => string; onC
     <div className="gpt-compat-settings__card" aria-busy={starting}>
       <h4>{t('localTitle')}</h4>
       {(!localError || local) && <p role="status" className="gpt-compat-settings__hint">{t(starting || local?.state === 'starting' ? 'localStartingLabel' : local?.state === 'running' ? 'localRunning' : local?.state === 'stopped' ? 'localStopped' : local?.state === 'unavailable' ? 'localUnavailable' : 'localChecking')}</p>}
-      {local && !local.canStart && local.state !== 'running' && <p className="gpt-compat-settings__hint">{t('localNotConfigured')}</p>}
+      {local && !local.canStart && local.state !== 'running' && <p className="gpt-compat-settings__hint">{local.issue ? friendly(new Error(local.issue)) : t('localNotConfigured')}</p>}
       <div className="gpt-compat-settings__actions">
         <Button variant="primary" disabled={starting || busy || !local?.canStart || local.state !== 'stopped'} onClick={() => void startLocal()}>{t(starting ? 'localStartingLabel' : 'localStart')}</Button>
         <Button variant="outline" disabled={starting} onClick={() => void refreshLocal()}>{t('localRefresh')}</Button>

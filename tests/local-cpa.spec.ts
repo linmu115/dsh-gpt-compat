@@ -1,8 +1,15 @@
 import { expect, it, vi } from 'vitest'
 import { createServer } from 'node:http'
-import { LocalCpa, probeLocal } from '../src/accounts/local.ts'
+import { LocalCpa, probeLocal, normalizeLocalLaunch } from '../src/accounts/local.ts'
 
 const config = { executable: 'C:/CPA/cli-proxy-api.exe', configFile: 'C:/CPA/config.yaml', passwordFile: 'C:/CPA/key.txt' }
+it('normalizes Windows paths before comparing the running executable or passing arguments', () => {
+  expect(normalizeLocalLaunch(config)).toEqual({ executable: 'C:\\CPA\\cli-proxy-api.exe', configFile: 'C:\\CPA\\config.yaml', passwordFile: 'C:\\CPA\\key.txt' })
+})
+it('reports which configured file is unavailable before enabling the startup button', async () => {
+  const local = new LocalCpa('http://127.0.0.1:8317', config, { probe: async () => 'stopped', launch: vi.fn(), check: async () => 'localPasswordMissing' })
+  expect(await local.status()).toEqual({ state: 'stopped', canStart: false, issue: 'localPasswordMissing' })
+})
 it('coalesces clicks, waits for readiness, and never launches an already running CPA', async () => {
   let running = false
   const launch = vi.fn(async () => { await new Promise(r => setTimeout(r, 10)); running = true })
