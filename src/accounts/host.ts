@@ -4,19 +4,22 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import { AccountError, CpaAccounts } from './cpa.ts'
 import type { ModelConfig } from '../responses.ts'
+import { LocalCpa, type LocalLaunchConfig } from './local.ts'
 
 export const name = 'dsh-gpt-compat-accounts'
 export const inject = ['connection', 'credentials']
 declare module '@deepseek-ai/cordis' {
   interface Context { gptCpaAccounts: { identity(endpoint: string): Promise<string | undefined>; models(endpoint: string): Promise<ModelConfig[] | undefined> } }
 }
-export interface Config { endpoint: string; managementKeyRef: string }
+export interface Config { endpoint: string; managementKeyRef: string; localLaunch?: LocalLaunchConfig }
 export const Config: z<Config> = z.object({
   endpoint: z.string().default('http://127.0.0.1:8317'),
   managementKeyRef: z.string().default('DSH_GPT_CPA_MANAGEMENT_KEY'),
+  localLaunch: z.object({ executable: z.string().default(''), configFile: z.string().default(''), passwordFile: z.string().default('') }).default({ executable: '', configFile: '', passwordFile: '' }),
 })
 export function apply(ctx: Context, config: Config): void {
   const ref = credentialRef(config.managementKeyRef)
+  const local = new LocalCpa(config.endpoint, config.localLaunch)
   const service = new CpaAccounts(config.endpoint, {
     get: async () => (await ctx.credentials.resolve(ref))?.value,
     set: value => ctx.credentials.set(ref, value),
@@ -34,12 +37,12 @@ export function apply(ctx: Context, config: Config): void {
   } })
   ctx.effect(() => ctx.connection.fetch.register({
     path: '/api/gpt-compat.accounts', methods: ['POST'], requestBody: 'buffered',
-    fetch: request => handleAccounts(service, request, notify),
+    fetch: request => handleAccounts(service, request, notify, local),
   }), 'GPT account management')
 }
 
 /** The Connection service supplies authentication and Host/Origin validation. */
-export async function handleAccounts(service: CpaAccounts, request: Request, catalogChanged?: () => void): Promise<Response> {
+export async function handleAccounts(service: CpaAccounts, request: Request, catalogChanged?: () => void, local?: LocalCpa): Promise<Response> {
   const headers = { 'cache-control': 'no-store' }
   let refreshCatalog = false
   try {
@@ -53,6 +56,12 @@ export async function handleAccounts(service: CpaAccounts, request: Request, cat
     const str = (key: string) => { if (typeof input[key] !== 'string' || (input[key] as string).length > 4096) throw new AccountError('invalidInput'); return input[key] as string }
     let value: unknown
     switch (input.action) {
+      case 'localStatus': case 'localStart':
+        if (Object.keys(input).some(key => key !== 'action')) throw new AccountError('invalidInput')
+        if (!local) throw new AccountError('localNotConfigured')
+        value = input.action === 'localStart' ? await local.start() : await local.status()
+        refreshCatalog = input.action === 'localStart'
+        break
       case 'list': value = await service.list(); break
       case 'configure': value = await service.configure(str('key')); break
       case 'quota': value = await service.quota(str('id')); break

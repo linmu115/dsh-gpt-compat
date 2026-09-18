@@ -1,8 +1,16 @@
 import { useEffect, useId, useState } from 'react'
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { AccountQuota, AccountSnapshot } from '../accounts/types.ts'
+import type { LocalStatus } from '../accounts/local.ts'
 
 export const accountEn = {
+  localTitle: 'Local CPA service', localStart: 'Start local CPA', localStarting: 'CPA is starting or another launcher holds the startup lock. Refresh its status shortly.', localStartingLabel: 'Starting CPA…',
+  localRunning: 'CPA is running', localStopped: 'CPA is not running', localChecking: 'Checking CPA…', localRefresh: 'Refresh service status',
+  localUnavailable: 'The endpoint did not identify itself as CPA. Check the port or service configuration before starting.',
+  localNotConfigured: 'Local startup has not been configured by the administrator.', localConfigInvalid: 'The configured CPA executable, configuration, or password file is missing or invalid.',
+  localUnsupported: 'Local startup currently supports Windows hosts only.', localLaunchFailed: 'Could not start CPA. Check local startup permissions and configuration.',
+  localStartTimeout: 'CPA did not become ready in time. Check its logs and refresh the status; an existing process will not be started again.',
+  localUpgradeRequired: 'The startup module is installed but the running DSH instance must be restarted normally to enable it.',
   accountTitle: 'CPA accounts', accountHint: 'Keep multiple accounts signed in, and proxy through one selected account. No automatic failover. This selection applies to all clients using this CPA.',
   refreshAccounts: 'Refresh accounts', connectAccount: 'Connect CPA', managementKey: 'CPA management key', keyHint: 'Use the CPA management password, not a model API key. Stored in DSH credentials; never sent to the model.',
   changeKey: 'Connection settings', accountCurrent: 'Current proxy account', accountStandby: 'Standby', accountDisabled: 'Disabled', accountUnavailable: 'Unavailable',
@@ -23,6 +31,13 @@ export const accountEn = {
 }
 export type AccountKey = keyof typeof accountEn
 export const accountZh: Record<AccountKey, string> = {
+  localTitle: '本机 CPA 服务', localStart: '启动本机 CPA', localStarting: 'CPA 正在启动，或另一个启动器持有启动锁，请稍后刷新状态。', localStartingLabel: '正在启动 CPA…',
+  localRunning: 'CPA 已运行', localStopped: 'CPA 未运行', localChecking: '正在检查 CPA…', localRefresh: '刷新服务状态',
+  localUnavailable: '此端点未返回 CPA 服务标识，请检查端口占用或服务配置后再启动。',
+  localNotConfigured: '尚未配置本机 CPA 启动路径，请由部署者完成配置。', localConfigInvalid: '配置的 CPA 程序、配置文件或密码文件不存在或无效。',
+  localUnsupported: '本机启动目前仅支持 Windows 宿主。', localLaunchFailed: '未能启动 CPA，请检查本机权限与启动配置。',
+  localStartTimeout: 'CPA 未在规定时间内就绪。请检查其日志并刷新状态；已存在的进程不会重复启动。',
+  localUpgradeRequired: '启动模块已安装，当前 DSH 实例需要正常重启后才能启用。',
   accountTitle: 'CPA 账号', accountHint: '可保存多个已登录账号，代理只使用你指定的一个，不自动换号。此选择对使用这台 CPA 的所有客户端生效。',
   refreshAccounts: '刷新账号', connectAccount: '连接 CPA', managementKey: 'CPA 管理密钥', keyHint: '填写 CPA 管理页的密码，不是模型 API Key。保存在 DSH 凭据中，不会发送给模型。',
   changeKey: '连接设置', accountCurrent: '当前代理账号', accountStandby: '待用', accountDisabled: '已停用', accountUnavailable: '暂不可用',
@@ -47,13 +62,15 @@ async function invoke<T>(action: string, data: Record<string, unknown> = {}, sig
   })
   if (response.status === 404) throw new Error('accountUnavailableService')
   const result = await response.json()
-  if (!result.ok) throw new Error(typeof result.code === 'string' ? result.code : 'accountError')
+  if (!result.ok) throw new Error(action === 'localStatus' && result.code === 'invalidInput' ? 'localUpgradeRequired' : typeof result.code === 'string' ? result.code : 'accountError')
   return result.value as T
 }
 
 export function Accounts({ t, onChanged }: { t: (key: AccountKey) => string; onChanged?: () => void }) {
   const id = useId()
   const [snapshot, setSnapshot] = useState<AccountSnapshot>()
+  const [local, setLocal] = useState<LocalStatus>(), [starting, setStarting] = useState(false)
+  const [localError, setLocalError] = useState('')
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [key, setKey] = useState('')
   const [quotas, setQuotas] = useState<Record<string, AccountQuota | string>>({})
   const [pending, setPending] = useState<{ action: 'switch' | 'logout'; id: string; label: string; revision: string }>()
@@ -70,9 +87,25 @@ export function Accounts({ t, onChanged }: { t: (key: AccountKey) => string; onC
     } finally { setBusy(false) }
   }
   const reload = async () => { setSnapshot(await invoke<AccountSnapshot>('list')) }
+  const refreshLocal = async () => {
+    try { setLocal(await invoke<LocalStatus>('localStatus')); setLocalError('') }
+    catch (cause) { setLocal(undefined); setLocalError(friendly(cause)) }
+  }
+  const startLocal = async () => {
+    setStarting(true); setLocalError('')
+    try {
+      setLocal(await invoke<LocalStatus>('localStart'))
+      setError(''); await reload(); onChanged?.()
+    } catch (cause) { setLocalError(friendly(cause)) }
+    finally {
+      try { setLocal(await invoke<LocalStatus>('localStatus')) } catch { /* retain the actionable startup error */ }
+      setStarting(false)
+    }
+  }
   useEffect(() => { if (snapshot) onChanged?.() }, [snapshot?.revision, snapshot?.configured])
   useEffect(() => {
     const abort = new AbortController()
+    invoke<LocalStatus>('localStatus', {}, abort.signal).then(setLocal).catch(cause => { if (!abort.signal.aborted) setLocalError(friendly(cause)) })
     invoke<AccountSnapshot>('list', {}, abort.signal).then(setSnapshot).catch(cause => { if (!abort.signal.aborted) setError(friendly(cause)) })
     return () => abort.abort()
   }, [])
@@ -104,6 +137,16 @@ export function Accounts({ t, onChanged }: { t: (key: AccountKey) => string; onC
   }, [pending?.id, pending?.action])
   return <section className="gpt-compat-settings gpt-compat-accounts" aria-labelledby={`${id}-title`} aria-busy={busy}>
     <header className="gpt-compat-settings__heading"><h3 id={`${id}-title`}>{t('accountTitle')}</h3><p className="gpt-compat-settings__intro">{t('accountHint')}</p></header>
+    <div className="gpt-compat-settings__card" aria-busy={starting}>
+      <h4>{t('localTitle')}</h4>
+      {(!localError || local) && <p role="status" className="gpt-compat-settings__hint">{t(starting || local?.state === 'starting' ? 'localStartingLabel' : local?.state === 'running' ? 'localRunning' : local?.state === 'stopped' ? 'localStopped' : local?.state === 'unavailable' ? 'localUnavailable' : 'localChecking')}</p>}
+      {local && !local.canStart && local.state !== 'running' && <p className="gpt-compat-settings__hint">{t('localNotConfigured')}</p>}
+      <div className="gpt-compat-settings__actions">
+        <Button variant="primary" disabled={starting || busy || !local?.canStart || local.state !== 'stopped'} onClick={() => void startLocal()}>{t(starting ? 'localStartingLabel' : 'localStart')}</Button>
+        <Button variant="outline" disabled={starting} onClick={() => void refreshLocal()}>{t('localRefresh')}</Button>
+      </div>
+      {localError && <p role="alert" className="gpt-compat-settings__error">{localError}</p>}
+    </div>
     <details open={snapshot?.configured === false}>
       <summary>{t('changeKey')}{snapshot?.endpoint ? ` · ${snapshot.endpoint}` : ''}</summary>
       <div className="gpt-compat-settings__card">
