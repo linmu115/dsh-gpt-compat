@@ -5,6 +5,7 @@ import { dirname, win32 } from 'node:path'
 import { connect } from 'node:net'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { AccountError } from './cpa.ts'
+import { createHash } from 'node:crypto'
 
 export interface LocalLaunchConfig { executable: string; configFile: string; passwordFile: string }
 export type LocalState = 'running' | 'stopped' | 'starting' | 'unavailable'
@@ -18,12 +19,21 @@ interface Runtime {
 export function normalizeLocalLaunch(config: LocalLaunchConfig): LocalLaunchConfig {
   return { executable: win32.normalize(config.executable), configFile: win32.normalize(config.configFile), passwordFile: win32.normalize(config.passwordFile) }
 }
+const reportedFileFailures = new Set<string>()
+// Keep diagnostics useful without exposing a password, file contents, or raw paths.
+function reportFileFailure(issue: string, path: string, code: unknown): void {
+  const diagnostic = JSON.stringify({ issue, code: typeof code === 'string' && /^[A-Z_0-9]+$/.test(code) ? code : 'UNKNOWN', pathLength: path.length, pathSha256: createHash('sha256').update(path).digest('hex') })
+  if (reportedFileFailures.has(diagnostic)) return
+  if (reportedFileFailures.size >= 16) reportedFileFailures.clear()
+  reportedFileFailures.add(diagnostic)
+  console.warn('[gpt-compat local CPA] File check failed:', diagnostic)
+}
 export async function checkLocalLaunch(config: LocalLaunchConfig): Promise<string | undefined> {
   if (process.platform !== 'win32') return 'localUnsupported'
   if (![config.executable, config.configFile, config.passwordFile].every(path => win32.isAbsolute(path)) || !config.executable.toLowerCase().endsWith('.exe')) return 'localConfigInvalid'
   for (const [path, issue] of [[config.executable, 'localExecutableMissing'], [config.configFile, 'localConfigMissing'], [config.passwordFile, 'localPasswordMissing']]) {
     try { if (!(await stat(path!)).isFile()) return issue }
-    catch { return issue }
+    catch (error) { reportFileFailure(issue!, path!, (error as NodeJS.ErrnoException).code); return issue }
   }
 }
 
