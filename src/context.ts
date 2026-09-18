@@ -1,3 +1,4 @@
+import type {} from './progress.ts'
 /** Two independent checkpoints over retained original history. No surface replacements. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -99,6 +100,23 @@ async function largestPrefix(groups: Message[][], fits: (messages: Message[]) =>
 
 /** Prepare one route's selection; publish only a fully generated and durable checkpoint candidate. */
 export async function selectContext(ctx: Context, agent: Agent, request: GenerateOptions, prepared: PreparedLlmCall | undefined, config: Config): Promise<Projection> {
+  const owner = ctx.get?.('gptSubmissionProgress')
+  const existing = owner?.active.get(agent)
+  const user = request.messages.findLast(m => m.role === 'user' && m.source.kind === 'user')
+  const own = existing ? undefined : user && owner?.begin(agent, { clientSubmissionId: `context-${user.id}-${agent.session.snapshotEvents().length}`, text: '' }, false)
+  const progress = existing ?? own
+  try {
+    const result = await selectContextInternal(ctx, agent, request, prepared, config, progress)
+    progress?.update('ready')
+    own?.finish({ kind: 'success', userMessageId: user?.id })
+    return result
+  } catch (error) {
+    own?.finish({ kind: request.signal?.aborted ? 'cancelled' : 'error', message: error instanceof Error ? error.message : String(error) })
+    throw error
+  }
+}
+
+async function selectContextInternal(ctx: Context, agent: Agent, request: GenerateOptions, prepared: PreparedLlmCall | undefined, config: Config, progress?: import('./progress.ts').ProgressHandle): Promise<Projection> {
   const policy = config.context, signal = request.signal
   signal?.throwIfAborted()
   const raw = originalHistory(agent.session)
@@ -155,6 +173,7 @@ export async function selectContext(ctx: Context, agent: Agent, request: Generat
       count = await largestPrefix(available, messages => Promise.resolve(portableTokens([preamble, ...summary ? [summary] : [], ...messages]) <= summaryLimit))
     }
     if (!count) return fail('One complete tool interaction cannot fit a compaction request')
+    progress?.update('compressing', passes)
     const chunk = available.slice(0, count).flat()
     if (native) {
       const input = nativeInput(chunk)

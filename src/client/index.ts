@@ -1,3 +1,5 @@
+import { ContextProgress } from './Progress.tsx'
+import progressStyles from './progress.css?inline'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
@@ -38,11 +40,14 @@ export function apply(ctx: Context): void {
   ctx.effect(() => {
     const style = document.createElement('style')
     style.dataset.pluginCss = 'dsh-gpt-compat/bindings'
-    style.textContent = styles
+    style.textContent = styles + progressStyles
     document.head.appendChild(style)
     return () => style.remove()
   }, 'GPT compatibility settings styles')
   ctx.effect(() => ctx.locale.register('gpt.compat', { en, zh }), 'GPT compatibility copy')
+  // Session-scoped preview at the end of the conversation, above its composer.
+  const slots = ctx.slots as unknown as { inject(name: string, register: () => (() => void)): unknown; register(options: Record<string, unknown>, component: unknown): () => void }
+  slots.inject('conversation.input.dock', () => slots.register({ name: 'conversation.input.dock', id: 'gpt-context-progress', order: -100 }, ContextProgress))
   const scope = ctx.settingsScope.bind<ProviderSettings>({ namespace: 'gpt-responses' })
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'gpt-compat', order: 15, locale: 'gpt.compat',

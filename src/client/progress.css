@@ -1,0 +1,10 @@
+.gpt-context-progress{width:min(100%,48rem);margin:0 auto 12px;color:var(--foreground,currentColor);font-size:14px;line-height:1.5}
+.gpt-context-preview{margin:0 0 12px auto;padding:12px 16px;max-width:85%;width:fit-content;border-radius:22px;background:color-mix(in srgb,currentColor 8%,transparent)}
+.gpt-context-preview-text{white-space:pre-wrap;overflow-wrap:anywhere;max-height:12rem;overflow:auto}
+.gpt-context-preview small,.gpt-context-time,.gpt-context-progress p{opacity:.72;font-size:12px}
+.gpt-context-status{display:flex;align-items:center;gap:8px}
+.gpt-context-spinner{width:14px;height:14px;flex:none;border:1.5px solid currentColor;border-right-color:transparent;border-radius:50%;animation:gpt-context-spin 1s linear infinite}
+.gpt-context-done{width:6px;height:6px;flex:none;border-radius:50%;background:currentColor;margin:4px}
+.gpt-context-progress p{margin:5px 0 0 22px}.gpt-context-error{opacity:1!important}
+@keyframes gpt-context-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.gpt-context-spinner{animation:none}}

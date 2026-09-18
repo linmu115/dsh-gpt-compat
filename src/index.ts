@@ -1,3 +1,4 @@
+import { installProgress } from './progress.ts'
 /** DSH plugin: bind compatible tool surfaces to provider/model snapshots in each agent. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -33,6 +34,7 @@ export function apply(ctx: Context, config: Config): void {
   if (ctx.systemPrompt.supportsPreparation !== true) throw new Error('dsh-gpt-compat requires the DSH pre-assembly preparation extension')
   let source = () => config
   const effective = () => withNativeBindings(source(), ctx.llm.listConfigurableProviders())
+  installProgress(ctx, effective)
   installContext(ctx, effective)
   let closing = false
   const states = new Map<Agent, State>()
