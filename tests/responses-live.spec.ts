@@ -1,7 +1,7 @@
 /** Explicitly opt-in live check; ordinary development tests never call a paid endpoint. */
 import { expect, it } from 'vitest'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
-import { Config, ResponsesAdapter } from '../src/responses.ts'
+import { PlainConfig as Config, ResponsesAdapter } from '../src/responses.ts'
 
 it.skipIf(process.env.GPT_COMPAT_LIVE_TEST !== '1')('accepts a real Responses text request with a replay envelope', async () => {
   const required = (name: string) => { const value = process.env[name]; if (!value) throw new Error(`Set ${name} for the explicit live check`); return value }

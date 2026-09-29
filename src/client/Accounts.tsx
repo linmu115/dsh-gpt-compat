@@ -152,7 +152,7 @@ export function Accounts({ t, onChanged }: { t: (key: AccountKey) => string; onC
     <details open={snapshot?.configured === false}>
       <summary>{t('changeKey')}{snapshot?.endpoint ? ` · ${snapshot.endpoint}` : ''}</summary>
       <div className="gpt-compat-settings__card">
-        <label className="gpt-compat-settings__field"><span>{t('managementKey')}</span><Input type="password" autoComplete="new-password" value={key} disabled={busy} onChange={event => setKey(event.target.value)} /></label>
+        <label className="gpt-compat-settings__field"><span>{t('managementKey')}</span><Input type="password" autoComplete="new-password" value={key} disabled={busy} onChange={(event: import('react').ChangeEvent<HTMLInputElement>) => setKey(event.target.value)} /></label>
         <p className="gpt-compat-settings__hint">{t('keyHint')}</p>
         <Button variant="outline" disabled={busy || !key.trim()} onClick={() => void run(async () => { setSnapshot(await invoke('configure', { key })); setKey('') })}>{t('connectAccount')}</Button>
       </div>

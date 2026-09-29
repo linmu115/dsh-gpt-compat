@@ -34,7 +34,7 @@ const zh: typeof en = {
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap { 'gpt.compat': keyof typeof en }
 }
-export const inject = ['slots', 'locale', 'settingsScope', 'remote', 'remote.session']
+export const inject = ['slots', 'locale', 'configForms', 'remote', 'remote.session']
 export function apply(ctx: Context): void {
   installCompactionTrace(ctx)
   // The development host may only emit owner types, without generated Remote declarations.
@@ -50,7 +50,7 @@ export function apply(ctx: Context): void {
   // Session-scoped preview at the end of the conversation, above its composer.
   const slots = ctx.slots as unknown as { inject(name: string, register: () => (() => void)): unknown; register(options: Record<string, unknown>, component: unknown): () => void }
   slots.inject('conversation.input.dock', () => slots.register({ name: 'conversation.input.dock', id: 'gpt-context-progress', order: -100 }, ContextProgress))
-  const scope = ctx.settingsScope.bind<ProviderSettings>({ namespace: 'gpt-responses' })
+  const scope = ctx.configForms.get<ProviderSettings>('gpt-responses')
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'gpt-compat', order: 15, locale: 'gpt.compat',
     label: () => ctx.locale.bind('gpt.compat')('nav'),

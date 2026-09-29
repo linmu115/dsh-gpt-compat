@@ -15,29 +15,50 @@ export class ProcessPool {
   private readonly processes = new Map<number, ShellProcess>()
   private readonly owned = new Map<number, ShellProcess>()
   private closed = false
+  private readonly preparing = new Map<AbortController, Promise<void>>()
   constructor(private readonly shell: ShellExecutor, private readonly config: Config) {}
 
   async start(command: string, workdir: string | undefined, signal: AbortSignal, policy: Parameters<ShellExecutor['resolve']>[0]['sandboxPolicy'], yieldMs: number, dshEnv?: Parameters<ShellExecutor['resolve']>[0]['dshEnv']): Promise<string> {
     signal.throwIfAborted()
     if (this.closed) throw new Error('Command scope is closed')
-    if (this.processes.size >= this.config.maxProcesses) throw new Error('Collect or cancel an existing command before starting another')
-    const spec = this.shell.resolve({ command, workdir, interactive: true, sandboxPolicy: policy, dshEnv })
+    if (this.processes.size + this.preparing.size >= this.config.maxProcesses) throw new Error('Collect or cancel an existing command before starting another')
+    const spec = this.shell.resolve({ command, workdir, interactive: true, onExpiry: 'none', sandboxPolicy: policy, dshEnv })
     if (!spec.interactive) throw new Error('This DSH shell does not support interactive process handles; install the host extension')
-    const process = this.shell.start(spec)
-    let id: number
-    do { id = randomInt(1, 2147483647) } while (this.processes.has(id))
-    this.processes.set(id, process)
-    this.owned.set(id, process)
-    void process.done.then(async () => {
-      if (await process.waitForExit?.() !== false) this.owned.delete(id)
-    }).catch(() => { /* Retain ownership so teardown reports observation failure. */ })
-    try { return await this.collect(id, '', signal, yieldMs) }
-    catch (error) {
-      this.stop(process)
-      await process.done
-      await process.waitForExit?.()
-      this.processes.delete(id)
-      throw error
+    const preparation = new AbortController()
+    let finish!: () => void
+    const finished = new Promise<void>(resolve => { finish = resolve })
+    this.preparing.set(preparation, finished)
+    const abortPreparation = () => preparation.abort(signal.reason)
+    signal.addEventListener('abort', abortPreparation, { once: true })
+    if (signal.aborted) abortPreparation()
+    try {
+      const process = await this.shell.execute({ ...spec, signal: preparation.signal })
+      // Only preparation follows the original call signal permanently. Once a
+      // handle exists, collect() owns cancellation while each call is waiting.
+      signal.removeEventListener('abort', abortPreparation)
+      if (this.closed || signal.aborted) {
+        this.stop(process); await process.done; await process.waitForExit?.();
+        signal.throwIfAborted(); throw new Error('Command scope closed during preparation')
+      }
+      let id: number
+      do { id = randomInt(1, 2147483647) } while (this.processes.has(id))
+      this.processes.set(id, process)
+      this.owned.set(id, process)
+      this.preparing.delete(preparation); finish()
+      void process.done.then(async () => {
+        if (await process.waitForExit?.() !== false) this.owned.delete(id)
+      }).catch(() => { /* Retain ownership so teardown reports observation failure. */ })
+      try { return await this.collect(id, '', signal, yieldMs) }
+      catch (error) {
+        this.stop(process)
+        await process.done
+        await process.waitForExit?.()
+        this.processes.delete(id)
+        throw error
+      }
+    } finally {
+      signal.removeEventListener('abort', abortPreparation)
+      this.preparing.delete(preparation); finish()
     }
   }
 
@@ -85,12 +106,15 @@ export class ProcessPool {
   /** Stop owned processes, await settlement, and retain their final output for a switch notice. */
   async close(): Promise<string[]> {
     this.closed = true
+    const preparing = [...this.preparing.values()]
+    for (const controller of this.preparing.keys()) controller.abort(new Error('Command scope closed'))
     const entries = [...new Map([...this.owned, ...this.processes]).entries()]
     for (const [, process] of entries) this.stop(process)
     await Promise.all(entries.map(async ([, process]) => {
       await process.done
       await process.waitForExit?.()
     }))
+    await Promise.all(preparing)
     this.processes.clear()
     this.owned.clear()
     return entries.map(([id, process]) => boundText(`Command session ${id} stopped on compatibility deactivation.\n${process.readOutput().delta}`, this.config.maxOutputBytes))

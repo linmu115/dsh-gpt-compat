@@ -1,1 +1,1 @@
-{"extends":"./tsconfig.test.generated.json"}
+{"extends":"./tsconfig.compat02.json","include":["src/**/*.ts","src/**/*.tsx","tests/**/*.ts","tests/**/*.tsx"]}

@@ -1,11 +1,12 @@
 import type {} from './progress.ts'
+import type {} from './producer.ts'
 /** Two independent checkpoints over retained original history. No surface replacements. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { AdapterContext, GenerateOptions, Message, PreparedLlmCall } from '@deepseek-ai/dsh-llm'
-import { createUserMessage, LlmError } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, LlmError, offloadedImageText } from '@deepseek-ai/dsh-llm'
 import type { Session, SessionEventMap } from '@deepseek-ai/dsh-session'
-import { deriveEventMessage } from '@deepseek-ai/dsh-session/surface'
+import { isCompactCheckpointSource } from '@deepseek-ai/dsh-compaction/checkpoint'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { type Config, matches } from './config.ts'
 import { fingerprint, record } from './responses-wire.ts'
@@ -30,8 +31,8 @@ export function originalHistory(session: Session): Message[] {
   const visit = (seq: number): Message[] => {
     const event = events[seq]
     if (!event) return fail('Missing source event in compacted history')
-    const message = deriveEventMessage(event)
-    if (message?.source.kind === 'plugin' && message.source.plugin === 'compact' && event.sourceEventSeqs?.length) {
+    const message = session.deriveEventMessage(event)
+    if (message && isCompactCheckpointSource(message.source) && event.sourceEventSeqs?.length) {
       return event.sourceEventSeqs.flatMap(visit)
     }
     return message && message.role !== 'system' ? [message] : []
@@ -45,12 +46,11 @@ export function balancedGroups(messages: Message[]): Message[][] {
   let group: Message[] = []
   for (const message of messages) {
     group.push(message)
+    if (message.role === 'tool' && !pending.delete(message.toolCallId)) return fail('Unpaired historical tool result')
     for (const block of message.content) {
       if (block.type === 'tool-call') {
         if (pending.has(block.id)) return fail('Duplicate pending tool call')
         pending.add(block.id)
-      } else if (block.type === 'tool-result') {
-        if (!pending.delete(block.toolCallId)) return fail('Unpaired historical tool result')
       }
     }
     if (!pending.size) { result.push(group); group = [] }
@@ -83,7 +83,7 @@ function readSaved(session: Session, key: string, raw: Message[]): Saved | undef
 /** Conservative local estimate for portable text, with metadata and ciphertext excluded. */
 export function portableTokens(messages: Message[], tools: GenerateOptions['tools'] = []): number {
   const media = (blocks: Message['content']): number => blocks.reduce((total, block) => total
-    + (block.type === 'image' ? imageTokens(block.attachment) : block.type === 'tool-result' ? media(block.content) : 0), 0)
+    + (block.type === 'image' ? block.offloaded ? Buffer.byteLength(offloadedImageText(block.attachment)) : imageTokens(block.attachment) : 0), 0)
   return messages.reduce((total, message) => total + media(message.content), 0)
     + Buffer.byteLength(JSON.stringify({ messages: messages.map(message => ({ role: message.role, content: message.content })), tools }), 'utf8')
 }
@@ -102,7 +102,7 @@ async function largestPrefix(groups: Message[][], fits: (messages: Message[]) =>
 export async function selectContext(ctx: Context, agent: Agent, request: GenerateOptions, prepared: PreparedLlmCall | undefined, config: Config): Promise<Projection> {
   const owner = ctx.get?.('gptSubmissionProgress')
   const existing = owner?.active.get(agent)
-  const user = request.messages.findLast(m => m.role === 'user' && m.source.kind === 'user')
+  const user = request.messages.findLast(m => m.role === 'user' && m.source?.kind === 'user')
   const own = existing ? undefined : user && owner?.begin(agent, { clientSubmissionId: `context-${user.id}-${agent.session.snapshotEvents().length}`, text: '' }, false)
   const progress = existing ?? own
   try {
@@ -142,7 +142,7 @@ async function selectContextInternal(ctx: Context, agent: Agent, request: Genera
   // Keep the current human input and all material injected after it verbatim.
   // A reference context is a separate message, so retainGroups alone can split
   // it from its target (or compact the input when retainGroups is set to one).
-  const pendingUser = request.messages.findLast(message => message.role === 'user' && message.source.kind === 'user')
+  const pendingUser = request.messages.findLast(message => message.role === 'user' && message.source?.kind === 'user')
   const currentUser = pendingUser ? raw.findIndex(message => message.id === pendingUser.id) : -1
   const maxCovered = Math.min(raw.length - retained, currentUser < 0 ? raw.length : currentUser)
   if (covered > maxCovered) { covered = 0; prefix = []; summary = undefined }
@@ -169,7 +169,7 @@ async function selectContextInternal(ctx: Context, agent: Agent, request: Genera
     } else {
       summaryCall = await ctx.llm.prepareCall({ provider: policy.summaryProvider || request.provider, model: policy.summaryModel || request.model, maxTokens: policy.summaryMaxTokens }, signal)
       const summaryLimit = (summaryCall.context?.contextWindow ?? 0) - policy.summaryMaxTokens - policy.marginTokens
-      const preamble = createUserMessage({ content: [{ type: 'text', text: SUMMARY }], source: { kind: 'plugin', plugin: 'gpt-compat' } })
+      const preamble = createUserMessage({ content: [{ type: 'text', text: SUMMARY }], source: { kind: 'gpt-compat' } })
       count = await largestPrefix(available, messages => Promise.resolve(portableTokens([preamble, ...summary ? [summary] : [], ...messages]) <= summaryLimit))
     }
     if (!count) return fail('One complete tool interaction cannot fit a compaction request')
@@ -205,7 +205,7 @@ async function selectContextInternal(ctx: Context, agent: Agent, request: Genera
 }
 
 async function summarize(ctx: Context, agent: Agent, request: GenerateOptions, call: PreparedLlmCall, messages: Message[], progress?: import('./progress.ts').ProgressHandle): Promise<Message> {
-  const instruction = createUserMessage({ content: [{ type: 'text', text: SUMMARY }], source: { kind: 'plugin', plugin: 'gpt-compat' } })
+  const instruction = createUserMessage({ content: [{ type: 'text', text: SUMMARY }], source: { kind: 'gpt-compat' } })
   let text = '', stopped = false
   const options = { ...call.config, messages: [instruction, ...messages], purpose: 'compaction' as const }
   const operation = agent.session.append('context/operation', { kind: 'portable-summary', request: options as unknown as JsonValue })
@@ -219,7 +219,7 @@ async function summarize(ctx: Context, agent: Agent, request: GenerateOptions, c
   request.signal?.throwIfAborted()
   if (!stopped || !text.trim()) return fail('Portable summary did not complete')
   agent.session.append('context/operation-result', { operation: operation.seq, output: text })
-  return createUserMessage({ content: [{ type: 'text', text: `Earlier development context:\n${text}` }], source: { kind: 'plugin', plugin: 'gpt-compat-summary', form: 'recall' } })
+  return createUserMessage({ content: [{ type: 'text', text: `Earlier development context:\n${text}` }], source: { kind: 'gpt-compat', form: 'recall' } })
 }
 
 /** Register at assembly so legacy automatic compaction defers before its pre-step hook. */

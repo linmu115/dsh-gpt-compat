@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { createAssistantMessage, createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
+import { createAssistantMessage, createUserMessage, createToolResultMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
-import { Config, ResponsesAdapter } from '../src/responses.ts'
+import { PlainConfig as Config, ResponsesAdapter } from '../src/responses.ts'
 import { imagePart, hydrateImages } from '../src/responses-images.ts'
 import { requestBody } from '../src/responses-wire.ts'
 import { estimateNativeTokens, codexCompactionWindow } from '../src/native-budget.ts'
@@ -22,8 +22,8 @@ it('preserves image order and resolves bytes only at transport, including nested
   const id = ToolCallId('call-image')
   const request = { ...options(), messages: [user(), createAssistantMessage({ source: { kind: 'model', provider: 'test', model: 'gpt-test' },
     content: [{ type: 'tool-call', id, name: 'screenshot', arguments: '{}' }] }),
-    createUserMessage({ source: { kind: 'tool', callId: id }, content: [{ type: 'tool-result', toolCallId: id,
-      content: [{ type: 'text', text: 'screen' }, { type: 'image', attachment: ref }] }] })] }
+    createToolResultMessage({ callId: id, isError: false,
+      content: [{ type: 'text', text: 'screen' }, { type: 'image', attachment: ref }] })] }
   const body = requestBody(request, 'origin', false)
   const saved = JSON.stringify(body)
   const read = vi.fn(async () => ({ ref, data }))
@@ -69,7 +69,7 @@ it.each(['codex-v2', 'responses'] as const)('sends images through generation, %s
     models: [{ id: 'gpt-test', contextWindow: 64000, maxTokens: 2000 }] } } })
   const adapter = new ResponsesAdapter(() => config, async () => 'fixture-key', undefined, undefined, async () => ({ ref, data }))
   expect((await adapter.resolveModel('test', 'gpt-test')).inputModalities).toContain('image')
-  expect(adapter.imageRequestPricing('test', 'gpt-test').priceImages([ref])[0]?.visualTokens).toBe(4096)
+  expect(adapter.imageRequestPricing('test', 'gpt-test').priceImages([{ type: 'image', attachment: ref }])[0]?.visualTokens).toBe(4096)
   await drain(adapter.stream(options()))
   const prepared = await adapter.prepareCall('test', 'gpt-test')
   const cap = prepared.nativeContext!

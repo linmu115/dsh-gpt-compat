@@ -1,7 +1,7 @@
 import { afterEach, expect, it } from 'vitest'
-import { createAssistantMessage, createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
+import { createAssistantMessage, createUserMessage, createToolResultMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
-import { Config, ResponsesAdapter, validateConfig } from '../src/responses.ts'
+import { PlainConfig as Config, ResponsesAdapter, validateConfig } from '../src/responses.ts'
 import { ReasoningEffortId } from '@deepseek-ai/dsh-llm/brand'
 import { requestBody } from '../src/responses-wire.ts'
 import type { Item } from '../src/responses-wire.ts'
@@ -97,7 +97,7 @@ it('round-trips native custom calls, encrypted reasoning, response identities an
   expect(finish).toMatchObject({ type: 'finish', reason: { kind: 'tool-calls' } })
   const replay = finish?.type === 'finish' ? finish.replayState : undefined
   const assistant = createAssistantMessage({ content: blocks, source: { kind: 'model', provider: 'cpa', model: 'gpt-test', replayState: replay } })
-  const result = createUserMessage({ content: [{ type: 'tool-result', toolCallId: ToolCallId('call_patch'), content: [{ type: 'text', text: 'done' }] }], source: { kind: 'tool', callId: ToolCallId('call_patch') } })
+  const result = createToolResultMessage({ callId: ToolCallId('call_patch'), isError: false, content: [{ type: 'text', text: 'done' }] })
   // JSON persistence/reload must retain exactly the same provider output items.
   await collect(adapter.stream({ ...options(), messages: [message(), JSON.parse(JSON.stringify(assistant)), result] }))
   expect(server.requests[1]?.body.input).toEqual([{ role: 'user', content: '编辑文件' }, ...output, { type: 'custom_tool_call_output', call_id: 'call_patch', output: 'done' }])

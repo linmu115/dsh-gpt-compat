@@ -1,6 +1,6 @@
 {
   "name": "dsh-gpt-compat",
-  "version": "0.5.0-dev.8",
+  "version": "0.5.0-dsh02.1",
   "private": true,
   "type": "module",
   "description": "Session-scoped Codex tools and native Responses transport for DeepSeek Harness",
@@ -19,9 +19,15 @@
     "docs/responses.md",
     "docs/context.md",
     "docs/qualification.md",
-    "host-patches",
     "docs/maintenance.md",
-    "docs/accounts.md"
+    "docs/accounts.md",
+    "docs/dsh02-release.md",
+    "host-patches/dsh-0.2.0-rc.2-gpt-dsh02.1.patch",
+    "host-patches/dsh-0.2.0-rc.2-gpt-dsh02.1.manifest.json",
+    "host-patches/README.md",
+    "host-patches/LICENSE",
+    "host-patches/cpa-fixed-account.patch",
+    "host-patches/cpa-fixed-account.md"
   ],
   "dsh": {
     "bundle": {
@@ -29,9 +35,11 @@
     },
     "client": {
       "inject": [
-        "@deepseek-ai/dsh-client-ui-settings-general",
         "@deepseek-ai/dsh-client-ui-settings",
-        "@deepseek-ai/dsh-client-locale"
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-api-session-controller"
       ],
       "platform": "web"
     }
@@ -40,33 +48,44 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "build": "node scripts/build.mjs",
-    "configure": "node scripts/configure-types.mjs"
+    "configure": "node scripts/configure-types.mjs",
+    "build:host": "node scripts/build-host-candidate.mjs",
+    "audit:host": "node scripts/audit-host-candidate.mjs"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "4.0.2",
-    "@deepseek-ai/schemastery": "*",
-    "@deepseek-ai/dsh-agent": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-llm": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-session": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-tools": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-system-prompt": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-fs": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-shell": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-settings": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-sandbox-policy": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-settings-general": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-settings": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-slots": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-locale": "0.1.5-rc.2",
+    "@deepseek-ai/cordis": "4.0.4",
+    "@deepseek-ai/schemastery": "3.18.4",
+    "@deepseek-ai/dsh-agent": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-llm": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-session": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-system-prompt": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-fs": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-shell": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-settings": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-sandbox-policy": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-settings-general": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-settings": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-slots": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-locale": "0.2.0-rc.2",
     "react": "^18.2.0",
-    "@deepseek-ai/dsh-client-ui-renderer": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-shell-env": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-credentials": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-launch-environment": "0.1.5-rc.2"
+    "@deepseek-ai/dsh-client-ui-renderer": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-shell-env": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-credentials": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-launch-environment": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-compaction": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-util-values": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-attachment": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-connection": "0.2.0-rc.2",
+    "@deepseek-ai/cosmokit": "1.8.5",
+    "@deepseek-ai/cordis-plugin-loader": "1.0.5",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-api-remotes": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-api-session-controller": "0.2.0-rc.2"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-client-connection": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-client-ui-primitives": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-connection": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.0-rc.2",
     "typescript": "6.0.3",
     "vitest": "4.1.8",
     "vite-tsconfig-paths": "6.1.1",

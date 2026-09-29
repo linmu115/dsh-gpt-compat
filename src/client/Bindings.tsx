@@ -1,13 +1,13 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { Accounts } from './Accounts.tsx'
 
 export interface ProviderSettings { providers: Record<string, unknown> }
 export interface ModelGroup { id: string; name: string; models: readonly { id: string; name: string }[] }
 export interface Face {
-  hooks: { providers: SettingsScope<ProviderSettings> }
+  hooks: { providers: ConfigForm<ProviderSettings> }
   loadModels: (providers: string[]) => Promise<readonly ModelGroup[]>
 }
 export type Props = PropsRuntime<'settings.section'> & PropsLocale<'gpt.compat'> & InjectFace<Face>

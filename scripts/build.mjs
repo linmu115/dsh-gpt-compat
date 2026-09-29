@@ -3,6 +3,11 @@ import { readFile } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 import assert from 'node:assert/strict'
 import { resolve, dirname } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { project } from './dev-host.mjs'
+// Resolve the actual 0.2 distribution plus the explicit extension cohort before bundling.
+execFileSync(process.execPath, [resolve(project, 'scripts/configure-types.mjs')], { cwd: project, stdio: 'inherit' })
+execFileSync(process.execPath, [resolve(project, 'node_modules/typescript/bin/tsc'), '-p', 'tsconfig.host.generated.json'], { cwd: project, stdio: 'inherit' })
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
 await build({ entry: { index: 'src/accounts/host.ts' }, outDir: 'packages/accounts/lib', format: 'esm', dts: false, deps: { neverBundle: [/^@deepseek-ai\//] }, clean: false })
 await build({ entry: { index: 'src/index.ts', responses: 'src/responses.ts' }, outDir: 'lib', format: 'esm', dts: false, deps: { neverBundle: Object.keys(pkg.peerDependencies) }, clean: false })
@@ -34,4 +39,5 @@ const client = registrations[0].factory(specifier => {
   return {}
 })
 assert.equal(typeof client.apply, 'function')
-assert.ok(client.inject.includes('settingsScope'))
+assert.ok(client.inject.includes('configForms'))
+assert.ok(client.inject.includes('remote.session'))

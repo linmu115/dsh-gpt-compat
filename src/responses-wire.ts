@@ -1,6 +1,6 @@
 /** Lossless Responses conversion; provider state is never placed in visible text. */
 import { createHash } from 'node:crypto'
-import { LlmError, ToolCallId } from '@deepseek-ai/dsh-llm'
+import { LlmError, ToolCallId, offloadedImageText, projectToolUpdates } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, GenerateOptions, ReplayEnvelope, TokenUsage } from '@deepseek-ai/dsh-llm'
 import { imagePart } from './responses-images.ts'
 
@@ -66,19 +66,34 @@ export function replayEnvelope(output: Item[], responseId: string, origin: strin
 export function requestBody(options: GenerateOptions, origin: string, customApplyPatch: boolean): Item {
   const input: Item[] = []
   const calls = new Map<string, 'function_call' | 'custom_tool_call'>()
+  const seenCalls = new Set<string>()
   const append = (items: Item[]) => {
     for (const item of items) {
       if (item.type === 'function_call' || item.type === 'custom_tool_call') {
         const id = string(item.call_id)
-        if (calls.has(id)) return invalid('Duplicate historical tool call')
+        if (seenCalls.has(id)) return invalid('Duplicate historical tool call')
+        seenCalls.add(id)
         calls.set(id, item.type)
       }
       input.push(item)
     }
   }
   if (options.system) input.push({ role: 'system', content: options.system })
-  for (const message of options.messages) {
-    const state = message.source.kind === 'model' ? message.source.replayState : undefined
+  // Auxiliary encode/count/compact calls use the same current-tool projection as LlmRuntime.
+  const projected = projectToolUpdates(options.messages, options.tools, undefined, options.toolHistory)
+  for (const message of projected.messages) {
+    if (message.role === 'tool') {
+      const type = calls.get(message.toolCallId)
+      if (!type) return invalid('Tool result has no preceding call in this context window')
+      calls.delete(message.toolCallId)
+      const parts = message.content.map(part => part.type === 'image'
+        ? part.offloaded ? { type: 'input_text', text: offloadedImageText(part.attachment) } : imagePart(part.attachment)
+        : part.type === 'text' ? { type: 'input_text', text: part.text } : invalid('Unsupported tool result content'))
+      const output = parts.some(part => part.type !== 'input_text') ? parts : parts.map(part => part.text).join('\n')
+      input.push({ type: type === 'custom_tool_call' ? 'custom_tool_call_output' : 'function_call_output', call_id: message.toolCallId, output })
+      continue
+    }
+    const state = message.source?.kind === 'model' ? message.source.replayState : undefined
     const replay = record(state) && record(state.response) ? state.response : undefined
     if (message.role === 'assistant' && replay?.kind === 'dsh-gpt-responses' && replay.version === 1
       && replay.origin === origin && replay.contentFingerprint === fingerprint(message.content)
@@ -93,23 +108,13 @@ export function requestBody(options: GenerateOptions, origin: string, customAppl
         case 'text': input.push({ role: message.role, content: block.text }); break
         case 'image': {
           if (message.role !== 'user') return invalid('Images require a user message or tool result')
-          input.push({ role: 'user', content: [imagePart(block.attachment)] })
+          input.push({ role: 'user', content: block.offloaded ? offloadedImageText(block.attachment) : [imagePart(block.attachment)] })
           break
         }
         case 'reasoning': break // Foreign reasoning signatures and private state are not portable.
         case 'tool-call': {
           // Historical generic calls stay generic, even if today's tool declaration is custom.
           append([{ type: 'function_call', call_id: block.id, name: block.name, arguments: block.arguments }])
-          break
-        }
-        case 'tool-result': {
-          const type = calls.get(block.toolCallId)
-          if (!type) return invalid('Tool result has no preceding call in this context window')
-          const output = block.content.some(part => part.type === 'image')
-            ? block.content.map(part => part.type === 'image' ? imagePart(part.attachment)
-              : part.type === 'text' ? { type: 'input_text', text: part.text } : invalid('Unsupported tool result content'))
-            : block.content.map(part => part.type === 'text' ? part.text : invalid('Unsupported tool result content')).join('\n')
-          input.push({ type: type === 'custom_tool_call' ? 'custom_tool_call_output' : 'function_call_output', call_id: block.toolCallId, output })
           break
         }
         default: return invalid('This Responses adapter currently accepts text and tool content only')
@@ -123,7 +128,7 @@ export function requestBody(options: GenerateOptions, origin: string, customAppl
     model: options.model, input: prefix
       ? [...input.filter(item => item.role === 'system'), ...structuredClone(prefix.input), ...input.filter(item => item.role !== 'system')]
       : input, store: false, stream: true, include: ['reasoning.encrypted_content'],
-    ...options.tools?.length ? { tools: options.tools.map(tool => {
+    ...projected.tools?.length ? { tools: projected.tools.map(tool => {
       const properties = tool.parameters.properties
       const patch = tool.name === 'apply_patch' && customApplyPatch && record(properties) && record(properties.patch) && properties.patch.type === 'string'
       return patch ? { type: 'custom', name: tool.name, description: tool.description, format: { type: 'text' } }

@@ -1,0 +1,155 @@
+{
+  "baselineVersion": "0.2.0-rc.2",
+  "baselineCommit": "639ed015",
+  "patchId": "gpt-dsh02.1",
+  "stockHostCompatible": false,
+  "patchSha256": "209160dda767555084950bae5bce9423e8a799694dc76e45c00400cbb27c1657",
+  "applyCheck": true,
+  "changes": [
+    {
+      "path": "docs/persistence-catalog.md",
+      "beforeSha256": "7884d96ec60e78fa0812e8b50c6949df2fba701f022ebb71be1d76aa07664f52",
+      "afterSha256": "85b3a66755d83c7aad3d46bd845ac12647ea7fe3b1cd15156e2067df7a72611f"
+    },
+    {
+      "path": "docs/persistence-schema.json",
+      "beforeSha256": "b3d7621862f8dfd4384cef8965931031fd9845633749192721d85b2ebb371d40",
+      "afterSha256": "ec888854d0801bd90b75a48aee449786bf93651a000d56ab3fe6f524ac7123c7"
+    },
+    {
+      "path": "packages/compaction/compaction-basic/src/index.ts",
+      "beforeSha256": "c298756c1d06a24593dc573e08f337f7f012675bcfaa675edb7d5368b19649f6",
+      "afterSha256": "6b6328f08a643008cda6fd305425c020368a772a7574ed8a3695c8348da8bebc"
+    },
+    {
+      "path": "packages/core/agent-loop/src/agent.ts",
+      "beforeSha256": "9c985dd5ce3612b0a6f1833cb592930e4e390d4249821accea53064d8e42015c",
+      "afterSha256": "fdd8ade1cbab9cf03942e54cb8979df171ace7f7a08e358f8fb579b423f1d1cc"
+    },
+    {
+      "path": "packages/core/agent-loop/src/invariant.ts",
+      "beforeSha256": "109c89b44b3449b92c10a7116b00af0e49a8a80ff2be3d79a22c7d48992a08b5",
+      "afterSha256": "f786d7bb1790c161b6cb046ab841111bce1ea4c53fd20d61f973d3be81f4ad9f"
+    },
+    {
+      "path": "packages/core/agent/src/dispatch.ts",
+      "beforeSha256": "6dc2702311305b9ecc8c8a932417bb7929f7313722fbb432a899e53d16efc6e0",
+      "afterSha256": "7ba63c36635252872be742392eda487855073b0a5ffe0159ef250c0eb2f7383c"
+    },
+    {
+      "path": "packages/core/agent/src/index.ts",
+      "beforeSha256": "9979fdae64fd0a342067981c39de9cde2da7066d28f8506a501fd51e8f9068b9",
+      "afterSha256": "6f030983b89c1f53bb2896e414594e855751b9ec7200ec07b5f230d7498f34ee"
+    },
+    {
+      "path": "packages/core/agent/src/model-selection.ts",
+      "beforeSha256": "8e54dfda2e4a110148f384e0866ce0c6b213096d314aa84c222fa14155498571",
+      "afterSha256": "82ff1d6feccd0d3a4b90907e74a464ac8a99129da4a192c1670eba2bc42db819"
+    },
+    {
+      "path": "packages/core/agent/src/runtime-types.ts",
+      "beforeSha256": "d0ac3509febb04308eff84bc6c949ff3c736dec9fd9f8d230c5d7fa3455ff204",
+      "afterSha256": "d7ddaeacb68c9290435158bb475d342c149840b36ab2c31d4378c3cec1313693"
+    },
+    {
+      "path": "packages/core/scope/src/scoped-events.generated.ts",
+      "beforeSha256": "7d575021ad9e564f3910ea3fb055d1f40065586512d702a5454fda64678b2cd5",
+      "afterSha256": "e116ce496743a2323fa950dd1fdf778d32badc45a2c89ab2f24cb30fa69c70e8"
+    },
+    {
+      "path": "packages/core/session/src/index.ts",
+      "beforeSha256": "711d4d071bdce9afb4ab2abcf36b5dfc79e4a956b3236aa880c8c019d73ab9e6",
+      "afterSha256": "7df22b97acb392e697570843294f816a5810af9507a8762821b6e8d82c125f32"
+    },
+    {
+      "path": "packages/core/session/src/known-event-types.ts",
+      "beforeSha256": "f70489f767e4996c482cc7624edbbc93bf71a7d84a1bce94b587016dfa8d073c",
+      "afterSha256": "1be7cfe8a3aad29435f68bbeee4c9c370122da2adcf39c2df3e9172621670d80"
+    },
+    {
+      "path": "packages/core/session/src/surface.ts",
+      "beforeSha256": "6a1b31cb29227acc6e8f0806c691e3393eef6ce6c8b2eded963c0d6eb4780de8",
+      "afterSha256": "527503e491d00b2ff58ae792d3981934a2a41cf1be29d92b9a19a13e4e76795e"
+    },
+    {
+      "path": "packages/core/session/src/types.ts",
+      "beforeSha256": "71df05767d4436f7df989a7fe0d634befef54587f1ae63849cc6b28de6921c53",
+      "afterSha256": "8f5033e287d85bd9747a7d4e9768cf46ba9b7a9d7e496425dccb217c962d2987"
+    },
+    {
+      "path": "packages/core/session/tests/context-projection.spec.ts",
+      "beforeSha256": null,
+      "afterSha256": "2f73da91eaf60a7798f384672482c193b75b83641eecb43dc528f37f7cc5be88"
+    },
+    {
+      "path": "packages/core/system-prompt/src/index.ts",
+      "beforeSha256": "9e31442544109b3ff9be13458e826e0dcacbe31d9f59ddd96a6498ab20b1574e",
+      "afterSha256": "43ab5d07d280d00738dba071ff7febba02cc103de766c6cf1f414e0d36e2aa92"
+    },
+    {
+      "path": "packages/core/system-prompt/tests/preparation.spec.ts",
+      "beforeSha256": null,
+      "afterSha256": "b54d1ff0ed65a91792d556fc22f6b1b6a7f6772b98866b16e96eea5de9167837"
+    },
+    {
+      "path": "packages/core/system-prompt/tests/system-prompt.spec.ts",
+      "beforeSha256": "e06af2fa546860eb96cb6436a66acb10863f5350da32494b9db33478eb7175bc",
+      "afterSha256": "09a355f14de74eba4b5483e8066c9f822ce941bdcdcd5d5620092988f3002090"
+    },
+    {
+      "path": "packages/fs/fs-local/src/index.ts",
+      "beforeSha256": "77cdf3a1a259c9e24fef28f42f937a6b5ce1ad6d692fbc8dab148925cc4f1f28",
+      "afterSha256": "a6399de281e6115b687e51b84e08ec2309dca9c8fea666e4f3d1aacb331f225c"
+    },
+    {
+      "path": "packages/fs/fs-local/tests/remove-file.spec.ts",
+      "beforeSha256": null,
+      "afterSha256": "1f91013e62322c38a2a2ce318fbcf6686d5ca0d519dc1976885abff55a291353"
+    },
+    {
+      "path": "packages/fs/fs-sandbox/src/index.ts",
+      "beforeSha256": "baba926440e3bcaf9c5f70c4e7d5478efd977d66c76e025c4deb82534ce3256b",
+      "afterSha256": "c850570fc5ed9e2ae216124647fb6938f4690717409bf1b0cda3248663823924"
+    },
+    {
+      "path": "packages/fs/fs-sandbox/tests/fs-sandbox.spec.ts",
+      "beforeSha256": "a8959cf5eaa3c5d9e530dff9c871bec981aa7afdb8e1a2fdebdad7563ffaf541",
+      "afterSha256": "05c9dff06743a3f45bb669e3f3819ef8b707cbafeca446bdb7bf7ec2007ef0aa"
+    },
+    {
+      "path": "packages/fs/fs/src/index.ts",
+      "beforeSha256": "bb3e351a975fde0f5d313cf9374af958b5d92f85b9f7c6688ccc7098409690d7",
+      "afterSha256": "eab878f573ee7f430971c51f93bc77e64257a31c9a32f5b780d0c53318597d69"
+    },
+    {
+      "path": "packages/llm/llm/src/index.ts",
+      "beforeSha256": "95364943b5c48dba3cb2239981a6ebe89393b55927b4d646ee72a581f23e6914",
+      "afterSha256": "db78a5d6261fd29b0cefeca054732677c5adb151067bfd9d1421b561312d84c6"
+    },
+    {
+      "path": "packages/llm/llm/src/types.ts",
+      "beforeSha256": "f5206fd5daf18d3899202c96ca0edb6e7c1a10ddc535edead062ed28f2261b2d",
+      "afterSha256": "a566c6a31a140206ac625e34142d26415e4291ab77f8bde932454c033762281c"
+    },
+    {
+      "path": "packages/shell/bash-local/src/index.ts",
+      "beforeSha256": "03f7d8c0a6162aec6c71c719c937ab8b6b7fa011b7fcdc386e513c4d0aeab353",
+      "afterSha256": "88cf6f68e870e34c93605d3c88aa9b32e27627b7241ede0f0051204400c5f808"
+    },
+    {
+      "path": "packages/shell/bash-local/tests/interactive.spec.ts",
+      "beforeSha256": null,
+      "afterSha256": "8611f350d8ff5b280c54e377760f9ad7fe1bf4e9560955ae819e217305ce49a6"
+    },
+    {
+      "path": "packages/shell/pwsh-local/src/index.ts",
+      "beforeSha256": "feebf120ba9c27590b138da54fbc4124bbf79a1a63b56008199676c30239f5a4",
+      "afterSha256": "a3c4da544e68b5bfe714afa42d338f56b0ebf7fac419ead6110b02e2db42bccc"
+    },
+    {
+      "path": "packages/shell/shell/src/types.ts",
+      "beforeSha256": "32a710e1000dae0a7c47efbd9f970e5495ac3bad5e0a0e2298388f42ef03c089",
+      "afterSha256": "99f864801fd387dc004e3df5d55f41afd65aa028eb2c1a53b59ba52e11e8d4fc"
+    }
+  ]
+}

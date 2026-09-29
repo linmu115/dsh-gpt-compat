@@ -1,16 +1,17 @@
 import { installProgress } from './progress.ts'
 /** DSH plugin: bind compatible tool surfaces to provider/model snapshots in each agent. */
-import type { Context } from '@deepseek-ai/cordis'
+import type {} from './producer.ts'
+import type { Volatile, Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-settings'
 import { createUserMessage, type UserMessage } from '@deepseek-ai/dsh-llm'
-import { Config, matches, validateConfig, withNativeBindings } from './config.ts'
+import { Config as PlainConfig, matches, validateConfig, withNativeBindings } from './config.ts'
 import { ProcessPool } from './processes.ts'
 import { installTools } from './tools.ts'
 import { installContext } from './context.ts'
 
-export { Config }
+export const Config = PlainConfig.volatile()
 export const name = 'dsh-gpt-compat'
 export const inject = ['agents', 'systemPrompt', 'tools', 'fs', 'shell', 'shellEnv', 'llm', 'sessions']
 const GUIDE = 'Use apply_patch for file changes. Use exec_command for commands and write_stdin for running command sessions. Commands run in the configured DSH shell; paths and permissions belong to this workspace. Read files and include exact patch context. A session ID belongs only to this conversation. Switching away from compatible tools stops their running commands and records the final output. Keep using the other available DSH tools for skills, plugins, and external resources.'
@@ -29,19 +30,26 @@ interface State {
 }
 
 /** Mount with no enabled bindings by default; settings are captured only at the next assembly. */
-export function apply(ctx: Context, config: Config): void {
-  validateConfig(config)
+export function apply(ctx: Context, config: PlainConfig | Volatile<PlainConfig>): void {
+  const source = (): PlainConfig => {
+    const value: PlainConfig = structuredClone('get' in config ? config.get() : config) as PlainConfig
+    validateConfig(value)
+    return value
+  }
+  source()
+  ctx.on('internal/config', function (_raw, next) {
+    const candidate = next()
+    if (this === ctx.fiber) validateConfig(PlainConfig(candidate))
+    return candidate
+  })
   if (ctx.systemPrompt.supportsPreparation !== true) throw new Error('dsh-gpt-compat requires the DSH pre-assembly preparation extension')
-  let source = () => config
   const effective = () => withNativeBindings(source(), ctx.llm.listConfigurableProviders())
   installProgress(ctx, effective)
   installContext(ctx, effective)
   let closing = false
   const states = new Map<Agent, State>()
   ctx.inject(['settings'], settingsCtx => {
-    settingsCtx.settings.installSection(ctx, 'gpt-compat', Config, config, {
-      validate: validateConfig, setSource: current => { source = current }, onChange() {},
-    })
+    settingsCtx.effect(() => settingsCtx.settings.configure({ auto: false }, ctx.fiber))
   })
   const deactivate = (state: State): Promise<void> => {
     if (state.deactivating) return state.deactivating
@@ -68,7 +76,7 @@ export function apply(ctx: Context, config: Config): void {
       if (result.kind === 'reject' || !state.notices.length) return result
       state.pendingNotice ??= { count: state.notices.length, message: createUserMessage({
         content: [{ type: 'text', text: state.notices.join('\n\n') }],
-        source: { kind: 'plugin', plugin: name, form: 'notice', summary: 'Compatibility command sessions stopped after model/settings switch' },
+        source: { kind: 'gpt-compat', form: 'notice', summary: 'Compatibility command sessions stopped after model/settings switch' },
       }) }
       return { ...result, messages: [...result.messages, state.pendingNotice.message] }
     }))
@@ -134,7 +142,7 @@ export function apply(ctx: Context, config: Config): void {
       if (state.notices.length && ctx.agents.get(state.agent.id) === state.agent) {
         state.agent.inject(createUserMessage({
           content: [{ type: 'text', text: state.notices.splice(0).join('\n\n') }],
-          source: { kind: 'plugin', plugin: name, form: 'notice', summary: 'Compatibility command sessions stopped on plugin unload' },
+          source: { kind: 'gpt-compat', form: 'notice', summary: 'Compatibility command sessions stopped on plugin unload' },
         }))
       }
       for (const dispose of state.hooks) dispose()

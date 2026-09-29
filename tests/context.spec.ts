@@ -1,10 +1,11 @@
 import { expect, it, vi } from 'vitest'
-import { createAssistantMessage, createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
+import { createAssistantMessage, createUserMessage, createToolResultMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
+import { deriveEventMessage } from '@deepseek-ai/dsh-session/surface'
 import { balancedGroups, portableTokens, selectContext } from '../src/context.ts'
 import { Config } from '../src/config.ts'
 
 const call = (id: string) => ({ type: 'tool-call' as const, id: ToolCallId(id), name: 'fixture', arguments: '{}' })
-const result = (id: string) => createUserMessage({ content: [{ type: 'tool-result', toolCallId: ToolCallId(id), content: [{ type: 'text', text: 'done' }] }], source: { kind: 'tool', callId: ToolCallId(id) } })
+const result = (id: string) => createToolResultMessage({ callId: ToolCallId(id), isError: false, content: [{ type: 'text', text: 'done' }] })
 
 it('keeps parallel calls and all results in one indivisible group', () => {
   const assistant = createAssistantMessage({ content: [call('a'), call('b')], source: { kind: 'model', provider: 'p', model: 'm' } })
@@ -26,7 +27,7 @@ it('never includes the current user input or its injected reference in a compact
   const current = user('CURRENT_INPUT'), reference = user('REFERENCE_ORIGINAL', { kind: 'dsh-annotation', targetUserMessageId: current.id })
   const messages = [user('a'.repeat(600)), user('b'.repeat(600)), current, reference]
   const events: any[] = messages.map((data, seq) => ({ type: 'user/message', seq, data }))
-  const session = { surface: { nodes: [0, 1, 2, 3] }, snapshotEvents: () => events,
+  const session = { surface: { nodes: [0, 1, 2, 3] }, snapshotEvents: () => events, deriveEventMessage,
     append: (type: string, data: unknown) => { const event = { type, seq: events.length, data }; events.push(event); return event } }
   const compact = vi.fn(async (_request: unknown, input: unknown[]) => [{ text: 'summary' }])
   const capability = { format: 'native', scope: 'route', encode: (items: any[]) => items.map(m => ({ text: m.content[0].text })),
@@ -48,7 +49,7 @@ it('compacts a completed previous turn during preflight without including the pe
   const assistant = (text: string) => createAssistantMessage({ content: [{ type: 'text', text }], source: { kind: 'model', provider: 'test', model: 'model' } })
   const messages = [old, assistant('x'.repeat(600)), assistant('y'.repeat(600)), assistant('done')]
   const events: any[] = messages.map((message, seq) => ({ type: message.role + '/message', seq, data: message.role === 'assistant' ? { message } : message }))
-  const session = { surface: { nodes: [0, 1, 2, 3] }, snapshotEvents: () => events,
+  const session = { surface: { nodes: [0, 1, 2, 3] }, snapshotEvents: () => events, deriveEventMessage,
     append: (type: string, data: unknown) => { const event = { type, seq: events.length, data }; events.push(event as any); return event } }
   const compact = vi.fn(async (_request: unknown, _input: unknown[]) => [{ text: 'summary' }])
   const capability = { format: 'native', scope: 'route', encode: (items: any[]) => items.map(m => ({ text: m.content[0].text })),

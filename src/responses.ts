@@ -1,8 +1,10 @@
 /** Opt-in Responses provider. Existing provider registrations are never replaced. */
 import type { Context } from '@deepseek-ai/cordis'
+import type { Volatile } from '@deepseek-ai/cosmokit'
+import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type {} from './accounts/host.ts'
 import z from '@deepseek-ai/schemastery'
-import { assertUsableApiKey, LlmAdapter, LlmError } from '@deepseek-ai/dsh-llm'
+import { assertUsableApiKey, LlmAdapter, LlmError, offloadedImageText } from '@deepseek-ai/dsh-llm'
 import { ReasoningEffortId } from '@deepseek-ai/dsh-llm/brand'
 import type { GenerateOptions, LlmResolvedModelInfo, PreparedAdapterCall, StreamChunk } from '@deepseek-ai/dsh-llm'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
@@ -31,7 +33,7 @@ export interface ProviderConfig {
   tokenEstimateMultiplier: number
 }
 export interface Config { providers: Record<string, ProviderConfig> }
-export const Config: z<Config> = z.object({ providers: z.dict(z.object({
+export const PlainConfig: z<Config> = z.object({ providers: z.dict(z.object({
   baseURL: z.string().required(), apiKeyEnv: z.string().required(),
   models: z.array(z.object({ id: z.string().required(), contextWindow: z.number().step(1).min(1).required(), maxTokens: z.number().step(1).min(1).required(),
     reasoningEfforts: z.array(z.string()), defaultReasoningEffort: z.string(),
@@ -42,6 +44,7 @@ export const Config: z<Config> = z.object({ providers: z.dict(z.object({
   nativeContextMode: z.union(['responses', 'codex-v2']).default('responses'),
   tokenEstimateMultiplier: z.number().min(1).max(8).default(1.5),
 })).required() })
+export const Config = PlainConfig.required().volatile()
 
 /** Validate routes before publishing a new settings generation. Capacities are explicit. */
 export function validateConfig(config: Config): void {
@@ -73,7 +76,9 @@ export class ResponsesAdapter extends LlmAdapter {
     private readonly readImage?: ImageReader) { super() }
   override imageRequestPricing(_provider: string, _model: string) {
     return { priceImages: (images: Parameters<NonNullable<ReturnType<LlmAdapter['imageRequestPricing']>>['priceImages']>[0]) =>
-      images.map(ref => ({ visualTokens: imageTokens(ref), text: '' })) }
+      images.map(block => block.offloaded
+        ? { visualTokens: 0, text: offloadedImageText(block.attachment) }
+        : { visualTokens: imageTokens(block.attachment), text: '' }) }
   }
   private async models(profile: ProviderConfig): Promise<ModelConfig[]> {
     return (profile.nativeContextMode === 'codex-v2' ? await this.discover?.(profile.baseURL) : undefined) ?? profile.models
@@ -215,9 +220,9 @@ export class ResponsesAdapter extends LlmAdapter {
 export const name = 'dsh-gpt-responses'
 export const inject = ['llm']
 /** Install a separate provider entry; duplicate IDs fail rather than hijacking another adapter. */
-export function apply(ctx: Context, config: Config): void {
-  validateConfig(config)
-  let current = config
+export function apply(ctx: Context, config: Volatile<Config>): void {
+  let current = structuredClone(config.get()) as Config
+  validateConfig(current)
   const adapter = new ResponsesAdapter(() => current, async profile => {
     const ref = credentialRef(profile.apiKeyEnv)
     const credentials = ctx.get('credentials')
@@ -246,22 +251,25 @@ export function apply(ctx: Context, config: Config): void {
       if (!(id in current.providers) && occupied.has(id)) throw new Error(`Provider ${id} belongs to another adapter`)
     }
   }
-  ctx.inject(['settings'], settingsCtx => {
-    let source = () => config
-    const update = () => {
-      const candidate = source()
-      validate(candidate)
-      const previous = current
-      current = structuredClone(candidate)
-      try {
-        registration.replace(Object.keys(current.providers))
-        directory.replace(directoryEntries(current))
-      } catch (error) { current = previous; throw error }
+  // Validate before Loader commits any volatile snapshot, including provider collisions.
+  ctx.on('internal/config', function (raw, next) {
+    const candidate = next()
+    if (this === ctx.fiber) validate(PlainConfig(candidate))
+    return candidate
+  })
+  ctx.on('loader/volatile-update', () => {
+    const candidate = structuredClone(config.get()) as Config
+    validate(candidate)
+    const previous = current
+    current = candidate
+    try {
+      registration.replace(Object.keys(current.providers))
+      directory.replace(directoryEntries(current))
+    } catch (error) {
+      current = previous
+      registration.replace(Object.keys(previous.providers))
+      directory.replace(directoryEntries(previous))
+      throw error
     }
-    settingsCtx.settings.installSection(ctx, 'gpt-responses', Config, config, {
-      validate,
-      setSource: value => { source = value },
-      onChange: update,
-    })
   })
 }
