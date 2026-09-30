@@ -1,18 +1,18 @@
-import { spawn, execFile } from 'node:child_process'
-import { promisify } from 'node:util'
-import { open, stat, unlink } from 'node:fs/promises'
+import { spawn } from 'node:child_process'
+import { open, realpath, stat, unlink } from 'node:fs/promises'
 import { dirname, win32 } from 'node:path'
 import { connect } from 'node:net'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { AccountError } from './cpa.ts'
 import { createHash } from 'node:crypto'
+import { matchCpaProcess, readCpaProcesses, type CpaProcess } from './local-process.ts'
 
 export interface LocalLaunchConfig { executable: string; configFile: string; passwordFile: string }
 export type LocalState = 'running' | 'stopped' | 'starting' | 'unavailable'
 export interface LocalStatus { state: LocalState; canStart: boolean; issue?: string }
 interface Runtime {
   probe(endpoint: string): Promise<LocalState>
-  launch(config: LocalLaunchConfig): Promise<void>
+  launch(config: LocalLaunchConfig, endpoint: string): Promise<void>
   check?(config: LocalLaunchConfig): Promise<string | undefined>
 }
 
@@ -67,29 +67,57 @@ export async function probeLocal(endpoint: string): Promise<LocalState> {
   } catch { return 'unavailable' }
 }
 
-async function launchLocal(config: LocalLaunchConfig): Promise<void> {
-  const issue = await checkLocalLaunch(config)
-  if (issue) throw new AccountError(issue)
-  config = normalizeLocalLaunch(config)
-  // Also serialize separate DSH instances sharing this CPA executable. A stale
-  // lock is reported, never silently removed while another owner might launch.
-  const lockPath = config.executable + '.dsh-start.lock'
-  let lock
-  try { lock = await open(lockPath, 'wx') }
-  catch (error) { throw new AccountError((error as NodeJS.ErrnoException).code === 'EEXIST' ? 'localStarting' : 'localLaunchFailed') }
-  try {
-    // Detect an existing process even when it has not opened its port yet.
-    const { stdout } = await promisify(execFile)('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-      '$ErrorActionPreference = "Stop"; $p = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $env:DSH_CPA_EXECUTABLE }; if ($p) { "running" }'],
-    { windowsHide: true, timeout: 5000, maxBuffer: 1024, env: { ...process.env, DSH_CPA_EXECUTABLE: config.executable } })
-    if (stdout.trim() === 'running') return
+interface LaunchPorts {
+  check(config: LocalLaunchConfig): Promise<string | undefined>
+  lock(path: string): Promise<{ close(): Promise<void> }>
+  remove(path: string): Promise<void>
+  probe(endpoint: string): Promise<LocalState>
+  processes(executable: string): Promise<CpaProcess[]>
+  match(executable: string, configFile: string, rows: readonly CpaProcess[]): Promise<'same' | 'none' | 'ambiguous'>
+  canonical(path: string): Promise<string>
+  spawn(config: LocalLaunchConfig): Promise<void>
+}
+const launchPorts: LaunchPorts = {
+  check: checkLocalLaunch, lock: path => open(path, 'wx'), remove: unlink, probe: probeLocal,
+  processes: readCpaProcesses, match: matchCpaProcess, canonical: realpath,
+  spawn: async config => {
     const child = spawn(config.executable, ['--config', config.configFile, '--local-management-password-file', config.passwordFile], {
       cwd: dirname(config.executable), windowsHide: true, detached: true, stdio: 'ignore', shell: false,
     })
     await new Promise<void>((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject) })
     child.unref()
+  },
+}
+export async function launchLocal(config: LocalLaunchConfig, endpoint: string, ports: LaunchPorts = launchPorts): Promise<void> {
+  const issue = await ports.check(config)
+  if (issue) throw new AccountError(issue)
+  config = normalizeLocalLaunch(config)
+  try { config = { ...config, executable: await ports.canonical(config.executable), configFile: await ports.canonical(config.configFile) } }
+  catch { throw new AccountError('localLaunchFailed') }
+  // Also serialize separate DSH instances sharing this CPA executable. A stale
+  // lock is reported, never silently removed while another owner might launch.
+  const lockPath = config.executable + '.dsh-start.lock'
+  let lock
+  try { lock = await ports.lock(lockPath) }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      if (await ports.probe(endpoint) === 'running') return
+      throw new AccountError('localStarting')
+    }
+    throw new AccountError('localLaunchFailed')
+  }
+  try {
+    // Recheck under the shared executable lock: another owner may have started
+    // the requested endpoint between the initial probe and acquiring this lock.
+    const state = await ports.probe(endpoint)
+    if (state === 'running') return
+    if (state !== 'stopped') throw new AccountError('localUnavailable')
+    const match = await ports.match(config.executable, config.configFile, await ports.processes(config.executable))
+    if (match === 'ambiguous') throw new AccountError('localLaunchFailed')
+    if (match === 'same') return
+    await ports.spawn(config)
   } catch { throw new AccountError('localLaunchFailed') }
-  finally { await lock.close(); await unlink(lockPath).catch(() => {}) }
+  finally { await lock.close(); await ports.remove(lockPath).catch(() => {}) }
 }
 
 export class LocalCpa {
@@ -116,7 +144,7 @@ export class LocalCpa {
     if (state === 'running') return { state, canStart: !!this.config?.executable }
     if (state !== 'stopped') throw new AccountError('localUnavailable')
     if (!this.config?.executable || !this.config.configFile || !this.config.passwordFile) throw new AccountError('localNotConfigured')
-    await this.runtime.launch(this.config)
+    await this.runtime.launch(this.config, this.endpoint)
     const deadline = Date.now() + this.waitMs
     do {
       if (await this.runtime.probe(this.endpoint) === 'running') return { state: 'running', canStart: true }
