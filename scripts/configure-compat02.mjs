@@ -30,14 +30,16 @@ const paths = {}
 for (const pkgPath of packages) {
   const dir = path.join(host, 'packages', pkgPath)
   const { name } = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'))
-  paths[name] = [path.join(dir, 'src/index.ts').replaceAll('\\', '/')]
-  paths[name + '/*'] = [path.join(dir, 'src/*.ts').replaceAll('\\', '/')]
+  paths[name] = [path.relative(root, path.join(dir, 'src/index.ts')).replaceAll('\\', '/')]
+  paths[name + '/*'] = [path.relative(root, path.join(dir, 'src/*.ts')).replaceAll('\\', '/')]
 }
 fs.writeFileSync(path.join(root, 'tsconfig.compat02.json'), JSON.stringify({
   extends: './tsconfig.actual02.json', compilerOptions: { paths },
 }, null, 2) + '\n')
 fs.writeFileSync(path.join(host, 'tsconfig.compat02.json'), JSON.stringify({
-  extends: path.join(root, 'tsconfig.actual02.json'), compilerOptions: { paths },
+  extends: path.relative(host, path.join(root, 'tsconfig.actual02.json')).replaceAll('\\', '/'),
+  compilerOptions: { paths: Object.fromEntries(Object.entries(paths).map(([name, values]) =>
+    [name, values.map(value => path.relative(host, path.resolve(root, value)).replaceAll('\\', '/'))])) },
   include: packages.map(pkg => 'packages/' + pkg + '/src/**/*.ts'),
 }, null, 2) + '\n')
-console.log(JSON.stringify({ patchedSourcePackages: packages.length, baseline: '0.2.0-rc.2' }))
+console.log(JSON.stringify({ patchedSourcePackages: packages.length, baseline: '0.2.1-rc.2' }))

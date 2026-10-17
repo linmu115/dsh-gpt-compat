@@ -10,6 +10,7 @@ import { Config as PlainConfig, matches, validateConfig, withNativeBindings } fr
 import { ProcessPool } from './processes.ts'
 import { installTools } from './tools.ts'
 import { installContext } from './context.ts'
+import { installDiagnostics } from './diagnostics.ts'
 
 export const Config = PlainConfig.volatile()
 export const name = 'dsh-gpt-compat'
@@ -46,6 +47,7 @@ export function apply(ctx: Context, config: PlainConfig | Volatile<PlainConfig>)
   const effective = () => withNativeBindings(source(), ctx.llm.listConfigurableProviders())
   installProgress(ctx, effective)
   installContext(ctx, effective)
+  installDiagnostics(ctx, effective)
   let closing = false
   const states = new Map<Agent, State>()
   ctx.inject(['settings'], settingsCtx => {

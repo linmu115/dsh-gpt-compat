@@ -6,6 +6,7 @@ export interface AccountView {
   plan?: string
   disabled: boolean
   unavailable: boolean
+  unavailableReason?: 'authentication'
   canLogout: boolean
 }
 export interface AccountSnapshot {

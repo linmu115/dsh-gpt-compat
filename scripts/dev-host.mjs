@@ -4,34 +4,32 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 export const project = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export const host = resolve(process.env.DSH_HOST_ROOT || join(project, '../host-gpt-candidate'))
-export const hostModules = resolve(process.env.DSH_HOST_NODE_MODULES || (process.env.APPDATA
-  ? join(process.env.APPDATA, 'in.dsh-plug.dsh-launcher/versions/0.2.0-rc.2/node_modules') : join(host, 'node_modules')))
-export const hostPackages = ['packages/core/agent', 'packages/core/agent-loop', 'packages/core/scope', 'packages/core/session',
+export const hostModules = resolve(process.env.DSH_HOST_NODE_MODULES || join(host, 'node_modules'))
+export const hostPackages = ['packages/core/agent', 'packages/core/agent-loop', 'packages/core/session',
   'packages/core/system-prompt', 'packages/llm/llm', 'packages/compaction/compaction-basic',
   'packages/shell/shell', 'packages/shell/bash-local', 'packages/shell/pwsh-local',
-  'packages/fs/fs', 'packages/fs/fs-local', 'packages/fs/fs-sandbox']
+  'packages/fs/fs', 'packages/fs/fs-local', 'packages/fs/fs-sandbox', 'packages/session/session-persistence-jsonl']
 export function assertHostSource() {
   const file = join(host, 'packages/core/session/package.json')
-  if (!existsSync(file) || JSON.parse(readFileSync(file, 'utf8')).version !== '0.2.0-rc.2') throw new Error('DSH_HOST_ROOT must name independently patched DSH 0.2.0-rc.2 source; older RC2 is unsupported')
+  if (!existsSync(file) || JSON.parse(readFileSync(file, 'utf8')).version !== '0.2.1-rc.2') throw new Error('DSH_HOST_ROOT must name independently patched DSH 0.2.1-rc.2 source; older RC2 is unsupported')
 }
 export function actualHostPackages() {
-  const found = new Map(), store = join(hostModules, '.pnpm')
-  const inspect = scope => {
-    if (!existsSync(scope)) return
-    for (const leaf of readdirSync(scope)) {
-      const at = join(scope, leaf)
-      if (!existsSync(join(at, 'package.json'))) continue
-      const directory = realpathSync(at), pkg = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'))
-      if (pkg.name?.startsWith('@deepseek-ai/')) {
-        const prior = found.get(pkg.name)
-        if (prior && prior.pkg.version !== pkg.version) throw new Error(`Ambiguous actual host package: ${pkg.name}`)
-        found.set(pkg.name, { directory, pkg })
-      }
-    }
+  const found = new Map()
+  function inspect(directory) {
+    const file = join(directory, 'package.json')
+    if (!existsSync(file)) return
+    const pkg = JSON.parse(readFileSync(file, 'utf8'))
+    if (pkg.name?.startsWith('@deepseek-ai/')) found.set(pkg.name, { directory: realpathSync(directory), pkg })
   }
-  if (existsSync(store)) for (const entry of readdirSync(store)) inspect(join(store, entry, 'node_modules/@deepseek-ai'))
-  inspect(join(hostModules, '@deepseek-ai'))
-  if (found.get('@deepseek-ai/dsh-session')?.pkg.version !== '0.2.0-rc.2' || found.get('@deepseek-ai/cordis')?.pkg.version !== '4.0.4') throw new Error('Actual DSH 0.2.0-rc.2 / Cordis 4.0.4 distribution is required')
+  for (const group of readdirSync(join(host, 'packages'))) {
+    const parent = join(host, 'packages', group)
+    try { for (const name of readdirSync(parent)) inspect(join(parent, name)) } catch {}
+  }
+  for (const name of readdirSync(join(host, 'vendor'))) inspect(join(host, 'vendor', name))
+  for (const name of readdirSync(join(host, 'apps'))) inspect(join(host, 'apps', name))
+  inspect(join(host, 'native/system'))
+  for (const name of readdirSync(join(host, 'native/system/packages'))) inspect(join(host, 'native/system/packages', name))
+  if (found.get('@deepseek-ai/dsh-session')?.pkg.version !== '0.2.1-rc.2' || found.get('@deepseek-ai/cordis')?.pkg.version !== '4.0.5') throw new Error('Exact DSH 0.2.1-rc.2 / Cordis 4.0.5 source distribution required')
   return found
 }
 export function dependencyDirectory(name) {

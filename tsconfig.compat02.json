@@ -3,82 +3,82 @@
   "compilerOptions": {
     "paths": {
       "@deepseek-ai/dsh-agent": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/core/agent/src/index.ts"
+        "../host-gpt-candidate/packages/core/agent/src/index.ts"
       ],
       "@deepseek-ai/dsh-agent/*": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/core/agent/src/*.ts"
+        "../host-gpt-candidate/packages/core/agent/src/*.ts"
       ],
       "@deepseek-ai/dsh-agent-loop": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/core/agent-loop/src/index.ts"
+        "../host-gpt-candidate/packages/core/agent-loop/src/index.ts"
       ],
       "@deepseek-ai/dsh-agent-loop/*": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/core/agent-loop/src/*.ts"
+        "../host-gpt-candidate/packages/core/agent-loop/src/*.ts"
       ],
       "@deepseek-ai/dsh-scope": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/core/scope/src/index.ts"
+        "../host-gpt-candidate/packages/core/scope/src/index.ts"
       ],
       "@deepseek-ai/dsh-scope/*": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/core/scope/src/*.ts"
+        "../host-gpt-candidate/packages/core/scope/src/*.ts"
       ],
       "@deepseek-ai/dsh-session": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/core/session/src/index.ts"
+        "../host-gpt-candidate/packages/core/session/src/index.ts"
       ],
       "@deepseek-ai/dsh-session/*": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/core/session/src/*.ts"
+        "../host-gpt-candidate/packages/core/session/src/*.ts"
       ],
       "@deepseek-ai/dsh-system-prompt": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/core/system-prompt/src/index.ts"
+        "../host-gpt-candidate/packages/core/system-prompt/src/index.ts"
       ],
       "@deepseek-ai/dsh-system-prompt/*": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/core/system-prompt/src/*.ts"
+        "../host-gpt-candidate/packages/core/system-prompt/src/*.ts"
       ],
       "@deepseek-ai/dsh-llm": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/llm/llm/src/index.ts"
+        "../host-gpt-candidate/packages/llm/llm/src/index.ts"
       ],
       "@deepseek-ai/dsh-llm/*": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/llm/llm/src/*.ts"
+        "../host-gpt-candidate/packages/llm/llm/src/*.ts"
       ],
       "@deepseek-ai/dsh-compaction-basic": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/compaction/compaction-basic/src/index.ts"
+        "../host-gpt-candidate/packages/compaction/compaction-basic/src/index.ts"
       ],
       "@deepseek-ai/dsh-compaction-basic/*": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/compaction/compaction-basic/src/*.ts"
+        "../host-gpt-candidate/packages/compaction/compaction-basic/src/*.ts"
       ],
       "@deepseek-ai/dsh-shell": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/shell/shell/src/index.ts"
+        "../host-gpt-candidate/packages/shell/shell/src/index.ts"
       ],
       "@deepseek-ai/dsh-shell/*": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/shell/shell/src/*.ts"
+        "../host-gpt-candidate/packages/shell/shell/src/*.ts"
       ],
       "@deepseek-ai/dsh-bash-local": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/shell/bash-local/src/index.ts"
+        "../host-gpt-candidate/packages/shell/bash-local/src/index.ts"
       ],
       "@deepseek-ai/dsh-bash-local/*": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/shell/bash-local/src/*.ts"
+        "../host-gpt-candidate/packages/shell/bash-local/src/*.ts"
       ],
       "@deepseek-ai/dsh-pwsh-local": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/shell/pwsh-local/src/index.ts"
+        "../host-gpt-candidate/packages/shell/pwsh-local/src/index.ts"
       ],
       "@deepseek-ai/dsh-pwsh-local/*": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/shell/pwsh-local/src/*.ts"
+        "../host-gpt-candidate/packages/shell/pwsh-local/src/*.ts"
       ],
       "@deepseek-ai/dsh-fs": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/fs/fs/src/index.ts"
+        "../host-gpt-candidate/packages/fs/fs/src/index.ts"
       ],
       "@deepseek-ai/dsh-fs/*": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/fs/fs/src/*.ts"
+        "../host-gpt-candidate/packages/fs/fs/src/*.ts"
       ],
       "@deepseek-ai/dsh-fs-local": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/fs/fs-local/src/index.ts"
+        "../host-gpt-candidate/packages/fs/fs-local/src/index.ts"
       ],
       "@deepseek-ai/dsh-fs-local/*": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/fs/fs-local/src/*.ts"
+        "../host-gpt-candidate/packages/fs/fs-local/src/*.ts"
       ],
       "@deepseek-ai/dsh-fs-sandbox": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/fs/fs-sandbox/src/index.ts"
+        "../host-gpt-candidate/packages/fs/fs-sandbox/src/index.ts"
       ],
       "@deepseek-ai/dsh-fs-sandbox/*": [
-        "D:/AI/DeepSeekHarness-Plugin/worktrees/dsh02rc2-20260929/host-gpt-candidate/packages/fs/fs-sandbox/src/*.ts"
+        "../host-gpt-candidate/packages/fs/fs-sandbox/src/*.ts"
       ]
     }
   }

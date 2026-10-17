@@ -1,7 +1,9 @@
-# Host extension baselines
+# Host patch for DSH 0.2.1-rc.2
 
-The current candidate is `dsh-0.2.0-rc.2-gpt-dsh02.1.patch`, generated against official DSH commit `639ed015` and verified with `git apply --check`. Its adjacent manifest records every original and resulting file hash. It is an independently maintained host extension, not a capability of the unmodified Launcher distribution.
+The current patch is `dsh-0.2.1-rc.2-gpt-dsh021.1.patch`, based on official commit `687f282e8625c6b8d11ff58211a90524be2e4317`. Its manifest records exact source changes and a clean apply check. The 0.2.0 patch is retained as historical source only.
 
-The 13 rebuilt host packages identify themselves as `0.2.0-rc.2+gpt-dsh02.1` and carry `dshManagedPatch`. The build copies all actual host packages into an independent runtime so unmodified catalog and persistence packages resolve the patched Session package. The V4 writer/current restore accepts the five GPT extension events there; the unmodified official catalog must still reject them. A Maintenance reader requires the matching GPT dialect capability rather than treating this data as plain stock V4.
+Required capabilities: scoped prompt preparation and route selection; durable request projections and native compaction; guarded single-file removal; interactive managed shell input and process join; JSONL provider/tracker exports for Maintenance composition. Upstream removed invariant and generated scoped-events patches are retired.
 
-`legacy/dsh-0.1.5-rc.2-gpt-compat.patch` is a source-history archive, excluded from the current plugin tarball. Do not apply it to DSH 0.2. The separate CPA fixed-account patch targets CLIProxyAPI; it is not a DSH host patch and is not installed by these build scripts.
+Use the independent runtime and the 13-package overlay together. Never overwrite an active Launcher installation. The CPA fixed-account patch remains a separate local CPA component and is not a DSH source patch.
+
+See `../docs/dsh021-release.md` and the iteration acceptance report for build and deployment evidence.

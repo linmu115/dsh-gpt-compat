@@ -11,6 +11,7 @@ import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { type Config, matches } from './config.ts'
 import { fingerprint, record } from './responses-wire.ts'
 import { imageTokens } from './responses-images.ts'
+import { compactionResult, type NativeContextExtras } from './auxiliary-usage.ts'
 
 type Projection = SessionEventMap['request/projection']
 interface Saved {
@@ -121,6 +122,9 @@ async function selectContextInternal(ctx: Context, agent: Agent, request: Genera
   signal?.throwIfAborted()
   const raw = originalHistory(agent.session)
   const systems = request.messages.filter(message => message.role === 'system')
+  const capability = prepared?.nativeContext as (NonNullable<PreparedLlmCall['nativeContext']> & NativeContextExtras) | undefined
+  // Server-managed replay reconstructs from original messages, never an old local checkpoint projection.
+  if (capability?.serverManaged && matches(config, request.provider, request.model)) return { messages: [...systems, ...raw] }
   const capacity = prepared?.context?.contextWindow
   if (!capacity) return fail('Context capacity is required for automatic context selection')
   const reserve = request.maxTokens ?? policy.reserveTokens
@@ -128,7 +132,6 @@ async function selectContextInternal(ctx: Context, agent: Agent, request: Genera
   const trigger = Math.min(limit, Math.floor(capacity * policy.triggerRatio) - reserve - policy.marginTokens)
   if (trigger <= 0) return fail('Output reserve and margin leave no input budget')
   const native = matches(config, request.provider, request.model)
-  const capability = prepared?.nativeContext
   if (native && !capability) return fail('Bound GPT route needs the native Responses context capability')
   const key = native ? NATIVE + capability!.scope : PORTABLE
   let saved = readSaved(agent.session, key, raw)
@@ -183,8 +186,10 @@ async function selectContextInternal(ctx: Context, agent: Agent, request: Genera
       } as unknown as JsonValue })
       progress?.operation(operation.seq)
       if (!await ctx.sessions.flush(agent.session)) return fail('Compaction requires durable operation logging')
-      prefix = await capability!.compact(nativeOptions, input)
-      agent.session.append('context/operation-result', { operation: operation.seq, output: prefix })
+      const result = capability!.compactWithUsage ? await capability!.compactWithUsage(nativeOptions, input)
+        : { input: await capability!.compact(nativeOptions, input), usage: undefined }
+      prefix = result.input
+      agent.session.append('context/operation-result', { operation: operation.seq, output: compactionResult(prefix, result.usage) })
     } else summary = await summarize(ctx, agent, request, summaryCall!, [...summary ? [summary] : [], ...chunk], progress)
     covered += chunk.length
     changed = true
@@ -206,7 +211,7 @@ async function selectContextInternal(ctx: Context, agent: Agent, request: Genera
 
 async function summarize(ctx: Context, agent: Agent, request: GenerateOptions, call: PreparedLlmCall, messages: Message[], progress?: import('./progress.ts').ProgressHandle): Promise<Message> {
   const instruction = createUserMessage({ content: [{ type: 'text', text: SUMMARY }], source: { kind: 'gpt-compat' } })
-  let text = '', stopped = false
+  let text = '', stopped = false, usage: unknown
   const options = { ...call.config, messages: [instruction, ...messages], purpose: 'compaction' as const }
   const operation = agent.session.append('context/operation', { kind: 'portable-summary', request: options as unknown as JsonValue })
   progress?.operation(operation.seq)
@@ -215,10 +220,11 @@ async function summarize(ctx: Context, agent: Agent, request: GenerateOptions, c
     if (chunk.type === 'block-end' && chunk.block.type === 'text') text += chunk.block.text
     if (chunk.type === 'block-end' && chunk.block.type === 'tool-call') return fail('Summary model attempted a tool call')
     if (chunk.type === 'finish') stopped = chunk.reason.kind === 'stop'
+    if (chunk.type === 'usage') usage = chunk.usage
   }
   request.signal?.throwIfAborted()
   if (!stopped || !text.trim()) return fail('Portable summary did not complete')
-  agent.session.append('context/operation-result', { operation: operation.seq, output: text })
+  agent.session.append('context/operation-result', { operation: operation.seq, output: compactionResult(text, usage) })
   return createUserMessage({ content: [{ type: 'text', text: `Earlier development context:\n${text}` }], source: { kind: 'gpt-compat', form: 'recall' } })
 }
 

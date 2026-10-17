@@ -3,6 +3,7 @@ import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { Accounts } from './Accounts.tsx'
+import { Diagnostics } from './Diagnostics.tsx'
 
 export interface ProviderSettings { providers: Record<string, unknown> }
 export interface ModelGroup { id: string; name: string; models: readonly { id: string; name: string }[] }
@@ -42,5 +43,5 @@ export function Bindings(props: Props) {
         <ul className="gpt-compat-settings__catalog">{group.models.map(model => <li key={model.id}>{model.name}</li>)}</ul>
       </div>)}</div> : <p role="status" className="gpt-compat-settings__empty">{t('emptyModels')}</p>}
     <p className="gpt-compat-settings__hint">{t('hint')}</p>
-  </section><Accounts t={t} onChanged={() => setRefresh(value => value + 1)} /></>
+  </section><Diagnostics t={t} /><Accounts t={t} onChanged={() => setRefresh(value => value + 1)} /></>
 }

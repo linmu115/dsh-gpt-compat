@@ -1,10 +1,12 @@
+> Current local release: **0.6.0-dsh021.1**, Accounts **0.1.4-dsh021.1**, exact DSH **0.2.1-rc.2** with **gpt-dsh021.1**. See [current release](docs/dsh021-release.md). Older RC2 sections below retain their historical scope.
+
 # DSH GPT compatibility
 
-当前本地候选为 **0.5.0-dsh02.1**，可选账号模块为 **0.1.4-dsh02.1**。目标是 DSH **0.2.0-rc.2** 与 Cordis **4.0.4**，并且必须使用配套的独立宿主扩展 **gpt-dsh02.1**。未修改的官方 Launcher 宿主不能只安装这个插件就使用完整功能。
+当前升级候选为 **0.6.0-dsh02.1**，可选账号模块保持 **0.1.4-dsh02.3**。目标是 DSH **0.2.0-rc.2** 与 Cordis **4.0.4**，并且必须使用配套的独立宿主扩展 **gpt-dsh02.1**。未修改的官方 Launcher 宿主不能只安装这个插件就使用完整功能。增量交付、额外压缩用量/只读诊断及显式服务端压缩见 [2026-10-03 升级记录](docs/upgrade-20261003.md)；此前进程/凭据维护与安装历史保留在 [维护记录](docs/maintenance-20261003.md)。
 
 插件提供按会话模型范围启停的 `apply_patch`、`exec_command`、`write_stdin`，可选 Responses 传输，以及原生/可读摘要双检查点上下文管理。工具通过当前 agent 的文件系统、shell、权限及受管进程服务执行，不启动嵌套 Codex CLI。上下文管理默认关闭，原始会话保留，选定的请求内容在发送前持久化。
 
-本轮把工具结果适配为 0.2 的 top-level tool 消息，保留调用配对、source、模型 replay 与 offloaded image 含义；设置页使用新的配置表单服务，受管命令使用异步 shell 就绪及取消契约。两个 npm 包保持 private，本轮只生成本地候选文件，没有发布或安装到日常 profile。
+RC2 适配把工具结果改为 0.2 的 top-level tool 消息，保留调用配对、source、模型 replay 与 offloaded image 含义；设置页使用新的配置表单服务，受管命令使用异步 shell 就绪及取消契约。两个 npm 包保持 private。2026-09-30 的主插件 `.1` 与账号模块 `.2` 已在准确 Launcher RC2 实例安装并验证真实模型及工具链；这不代替新候选的安装和验收。
 
 ## 构建和产物
 

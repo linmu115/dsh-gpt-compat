@@ -10,9 +10,12 @@ import type { ModelCatalog } from '@deepseek-ai/dsh-api-session-controller/types
 import { Bindings, type ProviderSettings, type Face } from './Bindings.tsx'
 import styles from './bindings.css?inline'
 import { accountEn, accountZh } from './Accounts.tsx'
+import { diagnosticEn, diagnosticZh } from './Diagnostics.tsx'
+import { usageEn, usageZh } from './Usage.tsx'
 
 const en = {
   ...accountEn,
+  ...diagnosticEn, ...usageEn,
   nav: 'GPT compatibility', title: 'GPT models',
   description: 'Available GPT conversation models are discovered automatically. Compatible tools are enabled when you use them.',
   refreshModels: 'Refresh', loadingModels: 'Loading models…',
@@ -23,6 +26,7 @@ const en = {
 }
 const zh: typeof en = {
   ...accountZh,
+  ...diagnosticZh, ...usageZh,
   nav: 'GPT 适配', title: 'GPT 模型',
   description: '自动读取可用的 GPT 会话模型，使用时自动启用兼容工具。',
   refreshModels: '刷新列表', loadingModels: '正在读取模型列表…',

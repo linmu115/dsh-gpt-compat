@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { LlmError, ToolCallId, offloadedImageText, projectToolUpdates } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, GenerateOptions, ReplayEnvelope, TokenUsage } from '@deepseek-ai/dsh-llm'
 import { imagePart } from './responses-images.ts'
+import { pruneServerInput, validateServerCompaction } from './responses-server-compaction.ts'
 
 export type Item = Record<string, unknown>
 export const NATIVE_FORMAT = 'dsh-gpt-responses/v1'
@@ -12,13 +13,18 @@ const invalid = (message: string): never => { throw new LlmError(message, 'INVAL
 const string = (value: unknown): string => typeof value === 'string' ? value : invalid('Responses field must be a string')
 
 /** Validate executable output before exposing any tool call to the harness. */
-export function blocksFromOutput(output: unknown): ContentBlock[] {
+export function blocksFromOutput(output: unknown, allowServerCompaction = false): ContentBlock[] {
   if (!Array.isArray(output)) return invalid('Responses output must be an array')
   const blocks: ContentBlock[] = []
   const calls = new Set<string>()
   for (const item of output) {
     if (!record(item)) return invalid('Responses output item must be an object')
     switch (item.type) {
+      case 'compaction': {
+        if (!allowServerCompaction) return invalid('Server compaction output requires explicit server mode')
+        validateServerCompaction(item)
+        break
+      }
       case 'message': {
         if (item.role !== 'assistant' || !Array.isArray(item.content)) return invalid('Invalid assistant output')
         for (const part of item.content) {
@@ -63,7 +69,7 @@ export function replayEnvelope(output: Item[], responseId: string, origin: strin
 }
 
 /** Convert logged history without changing its content or executing historical calls. */
-export function requestBody(options: GenerateOptions, origin: string, customApplyPatch: boolean): Item {
+export function requestBody(options: GenerateOptions, origin: string, customApplyPatch: boolean, serverCompaction = false): Item {
   const input: Item[] = []
   const calls = new Map<string, 'function_call' | 'custom_tool_call'>()
   const seenCalls = new Set<string>()
@@ -99,7 +105,7 @@ export function requestBody(options: GenerateOptions, origin: string, customAppl
       && replay.origin === origin && replay.contentFingerprint === fingerprint(message.content)
       && Array.isArray(replay.output) && replay.output.every(record)) {
       // Revalidation also prevents malformed persisted state reaching the wire.
-      if (fingerprint(blocksFromOutput(replay.output)) !== replay.contentFingerprint) return invalid('Replay content does not match the log')
+      if (fingerprint(blocksFromOutput(replay.output, serverCompaction)) !== replay.contentFingerprint) return invalid('Replay content does not match the log')
       append(structuredClone(replay.output))
       continue
     }
@@ -123,11 +129,12 @@ export function requestBody(options: GenerateOptions, origin: string, customAppl
   }
   if (options.stop?.length) return invalid('Responses does not support stop sequences')
   const prefix = options.adapterContext
+  if (prefix && serverCompaction) return invalid('Server managed context does not accept a local context prefix')
   if (prefix && (prefix.format !== NATIVE_FORMAT || prefix.scope !== origin || !prefix.input.every(record))) return invalid('Incompatible native context prefix')
   return {
     model: options.model, input: prefix
       ? [...input.filter(item => item.role === 'system'), ...structuredClone(prefix.input), ...input.filter(item => item.role !== 'system')]
-      : input, store: false, stream: true, include: ['reasoning.encrypted_content'],
+      : serverCompaction ? pruneServerInput(input) : input, store: false, stream: true, include: ['reasoning.encrypted_content'],
     ...projected.tools?.length ? { tools: projected.tools.map(tool => {
       const properties = tool.parameters.properties
       const patch = tool.name === 'apply_patch' && customApplyPatch && record(properties) && record(properties.patch) && properties.patch.type === 'string'

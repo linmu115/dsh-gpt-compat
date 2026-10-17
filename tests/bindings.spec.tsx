@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
 import React from 'react'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Bindings, type Props } from '../src/client/Bindings.tsx'
 vi.mock('../src/client/Accounts.tsx', () => ({ Accounts: () => null }))
-afterEach(cleanup)
+beforeEach(() => vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ ok: true, value: {
+  version: 1, checkedAt: 1, contextEnabled: false, bindingCount: 0, providerState: 'available', providers: [],
+  credential: 'not-inspected', modelRequest: 'not-performed',
+} }) }))))
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 function props(loadModels = vi.fn().mockResolvedValue([{ id: 'cpa', name: 'cpa', models: [{ id: 'gpt-a', name: 'gpt-a' }] }])): Props {
   return { t: (key: string) => key, loadModels,
     useProviders: (select: (value: unknown) => unknown) => select({

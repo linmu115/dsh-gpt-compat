@@ -7,17 +7,17 @@ import crypto from 'node:crypto'
 import { host, project, hostPackages, assertHostSource, actualHostPackages } from './dev-host.mjs'
 
 assertHostSource()
-const output = path.resolve(process.env.DSH_HOST_OUTPUT || path.join(project, 'artifacts/host-dsh02'))
+const output = path.resolve(process.env.DSH_HOST_OUTPUT || path.join(project, 'artifacts/host-dsh021'))
 if (output === host || output.includes('dsh-launcher') || output === project) throw new Error('Use a separate candidate output directory')
 const marker = path.join(output, 'candidate.json')
 if (fs.existsSync(output) && !fs.existsSync(marker)) throw new Error('Output already exists without a candidate ownership marker')
 fs.mkdirSync(output, { recursive: true })
-fs.writeFileSync(marker, JSON.stringify({ kind: 'dsh-gpt-host-candidate', baseline: '0.2.0-rc.2', patch: 'gpt-dsh02.1' }, null, 2))
+fs.writeFileSync(marker, JSON.stringify({ kind: 'dsh-gpt-host-candidate', baseline: '0.2.1-rc.2', patch: 'gpt-dsh021.1' }, null, 2))
 const actual = actualHostPackages(), cohort = hostPackages.map(relative => ({ relative, root: path.join(host, relative), pkg: JSON.parse(fs.readFileSync(path.join(host, relative, 'package.json'))) }))
 const paths = {}, files = []
 for (const { root, pkg } of cohort) {
   paths[pkg.name] = [path.join(root, 'src/index.ts')]; paths[pkg.name + '/*'] = [path.join(root, 'src/*.ts')]
-  for (const file of fs.readdirSync(path.join(root, 'src'), { recursive: true })) if (/\.tsx?$/.test(file)) files.push(path.join(root, 'src', file))
+  for (const file of (pkg.name === '@deepseek-ai/dsh-session-persistence-jsonl' ? [] : fs.readdirSync(path.join(root, 'src'), { recursive: true }))) if (/\.tsx?$/.test(file)) files.push(path.join(root, 'src', file))
 }
 const converted = ts.convertCompilerOptionsFromJson({ target: 'ES2024', module: 'ESNext', moduleResolution: 'Bundler',
   strict: true, skipLibCheck: true, noUncheckedIndexedAccess: true, noEmitOnError: true,
@@ -66,12 +66,12 @@ for (const [name, { directory, pkg }] of actual) {
 }
 const built = []
 for (const { relative, root, pkg } of cohort) {
-  const destination = path.join(modules, pkg.name), emittedRoot = path.join(output, 'emitted', relative, 'src')
+  const destination = path.join(modules, pkg.name), emittedRoot = pkg.name === '@deepseek-ai/dsh-session-persistence-jsonl' ? path.join(root, 'lib/types') : path.join(output, 'emitted', relative, 'src')
   fs.cpSync(emittedRoot, path.join(destination, 'lib/types'), { recursive: true })
   fs.cpSync(path.join(root, 'src'), path.join(destination, 'src'), { recursive: true })
   const manifest = JSON.parse(fs.readFileSync(path.join(destination, 'package.json')))
-  manifest.version = '0.2.0-rc.2+gpt-dsh02.1'
-  manifest.dshManagedPatch = { id: 'gpt-dsh02.1', upstreamVersion: '0.2.0-rc.2', requiresIndependentRuntime: true }
+  manifest.version = '0.2.1-rc.2+gpt-dsh021.1'
+  manifest.dshManagedPatch = { id: 'gpt-dsh021.1', upstreamVersion: '0.2.1-rc.2', requiresIndependentRuntime: true }
   fs.writeFileSync(path.join(destination, 'package.json'), JSON.stringify(manifest, null, 2) + '\n')
   const entries = {}
   const collect = value => {
@@ -87,5 +87,5 @@ for (const { relative, root, pkg } of cohort) {
   const hash = crypto.createHash('sha256'); for (const name of fs.readdirSync(path.join(destination, 'lib'), { recursive: true }).filter(x => /\.(?:js|d\.ts)$/.test(x)).sort()) hash.update(name).update(fs.readFileSync(path.join(destination, 'lib', name)))
   built.push({ name: pkg.name, version: manifest.version, relative, typedSources: files.filter(file => file.startsWith(root + path.sep)).length, entries: Object.keys(entries), libSha256: hash.digest('hex') })
 }
-fs.writeFileSync(path.join(output, 'assembly.json'), JSON.stringify({ kind: 'independent-patched-host', baseline: '0.2.0-rc.2', hostSource: host, copiedHostPackages: actual.size, runtime, built, thirdPartyCacheLinks: links }, null, 2))
+fs.writeFileSync(path.join(output, 'assembly.json'), JSON.stringify({ kind: 'independent-patched-host', baseline: '0.2.1-rc.2', hostSource: host, copiedHostPackages: actual.size, runtime, built, thirdPartyCacheLinks: links }, null, 2))
 console.log(JSON.stringify({ runtime, typedPackages: built.length, copiedHostPackages: actual.size, thirdPartyCacheLinks: links.length }))

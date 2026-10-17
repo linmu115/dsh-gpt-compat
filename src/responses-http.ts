@@ -1,6 +1,7 @@
 /** Bounded HTTP/SSE transport shared by Responses generation and explicit compaction. */
 import { attributionHeaders, CONTEXT_WINDOW_EXCEEDED_CODE, QUOTA_EXCEEDED_CODE, LlmError } from '@deepseek-ai/dsh-llm'
 import { record, type Item } from './responses-wire.ts'
+import { SseFrames } from './responses-stream.ts'
 
 export interface Connection {
   accountIdentity?: string
@@ -43,7 +44,8 @@ async function errorBody(response: Response): Promise<unknown> {
 }
 
 /** One attempt only; DSH owns visible retries. Redirects cannot carry a key elsewhere. */
-export async function post(connection: Connection, path: 'responses' | 'responses/compact' | 'responses/input_tokens', body: Item, signal?: AbortSignal): Promise<Item> {
+export type ResponsePacket = { kind: 'event'; event: Item } | { kind: 'terminal'; response: Item }
+export async function* postStream(connection: Connection, path: 'responses' | 'responses/compact' | 'responses/input_tokens', body: Item, signal?: AbortSignal): AsyncGenerator<ResponsePacket> {
   const timeout = AbortSignal.timeout(connection.timeoutMs)
   const combined = signal ? AbortSignal.any([signal, timeout]) : timeout
   combined.throwIfAborted()
@@ -63,19 +65,24 @@ export async function post(connection: Connection, path: 'responses' | 'response
   }
   if (!response.body) throw new LlmError('Responses returned no body', 'EMPTY_RESPONSE')
   const reader = response.body.getReader()
-  const decoder = new TextDecoder()
+  const decoder = new TextDecoder('utf-8', { fatal: true })
   const sse = response.headers.get('content-type')?.includes('text/event-stream') === true
+  const frames = new SseFrames()
   let size = 0, buffer = '', terminal: Item | undefined
-  const event = (frame: string) => {
-    const data = frame.split('\n').filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n')
+  const event = (data: string): Item | undefined => {
     if (!data || data === '[DONE]') return
-    const value: unknown = JSON.parse(data)
+    let value: unknown
+    try { value = JSON.parse(data) } catch { throw new LlmError('Invalid Responses event JSON', 'INVALID_RESPONSES_PAYLOAD') }
     if (!record(value)) throw new LlmError('Invalid Responses event', 'INVALID_RESPONSES_PAYLOAD')
     if (value.type === 'response.failed' || value.type === 'error') throw providerFailure(record(value.response) ? value.response : value)
     if (value.type === 'response.completed' || value.type === 'response.incomplete') {
       if (terminal || !record(value.response)) throw new LlmError('Invalid Responses terminal event', 'INVALID_RESPONSES_PAYLOAD')
+      if (value.response.status !== (value.type === 'response.completed' ? 'completed' : 'incomplete')) throw new LlmError('Responses terminal status mismatch', 'INVALID_RESPONSES_PAYLOAD')
       terminal = value.response
+      return value
     }
+    if (terminal) throw new LlmError('Responses event follows terminal response', 'INVALID_RESPONSES_PAYLOAD')
+    return value
   }
   try {
     while (true) {
@@ -84,21 +91,35 @@ export async function post(connection: Connection, path: 'responses' | 'response
       if (part.done) break
       size += part.value.byteLength
       if (size > connection.maxResponseBytes) throw new LlmError('Responses body exceeds configured limit', 'RESPONSES_SIZE_LIMIT')
-      buffer += decoder.decode(part.value, { stream: true })
+      const text = decoder.decode(part.value, { stream: true })
       if (sse) {
-        buffer = buffer.replace(/\r\n/g, '\n')
-        let boundary: number
-        while ((boundary = buffer.indexOf('\n\n')) >= 0) {
-          event(buffer.slice(0, boundary)); buffer = buffer.slice(boundary + 2)
-        }
+        // Validate the whole received batch before publishing its terminal. Do
+        // not wait for EOF: providers may retain the HTTP connection afterwards.
+        const events = frames.push(text).map(event).filter((value): value is Item => value !== undefined)
+        for (const value of events) { combined.throwIfAborted(); yield { kind: 'event', event: value } }
         // A terminal event owns the result; an open keep-alive must not stall tool execution.
         if (terminal) break
-      }
+      } else buffer += text
     }
-    buffer += decoder.decode()
-    if (sse && buffer.trim()) event(buffer.replace(/\r\n/g, '\n'))
-    if (!sse) { const value: unknown = JSON.parse(buffer); if (record(value)) terminal = value }
+    if (sse && !terminal) {
+      for (const data of frames.push(decoder.decode(), true)) {
+        const value = event(data)
+        if (value) yield { kind: 'event', event: value }
+      }
+    } else if (!sse) {
+      buffer += decoder.decode()
+      let value: unknown
+      try { value = JSON.parse(buffer) } catch { throw new LlmError('Invalid Responses JSON', 'INVALID_RESPONSES_PAYLOAD') }
+      if (record(value)) terminal = value
+    }
+    combined.throwIfAborted()
     if (!terminal) throw new LlmError('Responses stream ended before a terminal response', 'RESPONSES_TRUNCATED')
-    return terminal
+    yield { kind: 'terminal', response: terminal }
   } finally { await reader.cancel().catch(() => {}); reader.releaseLock() }
+}
+
+/** Auxiliary requests consume the same bounded transport without visible deltas. */
+export async function post(connection: Connection, path: 'responses' | 'responses/compact' | 'responses/input_tokens', body: Item, signal?: AbortSignal): Promise<Item> {
+  for await (const packet of postStream(connection, path, body, signal)) if (packet.kind === 'terminal') return packet.response
+  throw new LlmError('Responses stream ended before a terminal response', 'RESPONSES_TRUNCATED')
 }

@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { AccountQuota, AccountSnapshot } from '../accounts/types.ts'
 import type { LocalStatus } from '../accounts/local.ts'
@@ -28,6 +28,12 @@ export const accountEn = {
   notConfigured: 'Connect CPA with its management key first.', unauthorized: 'CPA rejected the management key. Check it in Connection settings.', unreachable: 'Cannot reach CPA. Check that it is running.',
   fixedUnsupported: 'This CPA needs the fixed-account extension before this panel can manage accounts.', stale: 'The account pool or selection changed. Refresh before trying again.',
   quotaUnavailable: 'CPA could not retrieve this account’s quota. This does not mean the remaining quota is zero.',
+  accountAuthentication: 'This account’s sign-in is no longer valid. Use Re-login below to sign in again. Its quota is unknown.',
+  accountRelogin: 'Re-login', reloginWaiting: 'Sign in to this same account using the link below. The proxy selection will stay unchanged.',
+  reloginChecking: 'Sign-in completed. Checking this account’s quota…', reloginVerified: 'This account’s quota check succeeded. Model requests have not been tested.',
+  reloginUnverified: 'This account could not be verified. If you signed in to a different account, retry with this account.',
+  reloginMissing: 'The target account is no longer listed. Refresh accounts to check its status.',
+  reloginLegacy: 'Choose a fixed proxy account before using Re-login, so signing in will not pause the original routing.',
   loginPending: 'A sign-in is already pending. Complete it or wait for it to expire before starting another.', loginExpired: 'Sign-in expired. Start again.',
 }
 export type AccountKey = keyof typeof accountEn
@@ -55,7 +61,14 @@ export const accountZh: Record<AccountKey, string> = {
   accountError: '操作未完成，请刷新确认当前状态。', accountUnavailableService: '账号管理模块尚未安装或运行。',
   notConfigured: '请先填写 CPA 管理密钥并连接。', unauthorized: 'CPA 拒绝了管理密钥，请在“连接设置”中检查。', unreachable: '无法连接 CPA，请检查服务是否运行。',
   fixedUnsupported: '当前 CPA 需要安装固定账号扩展，才能使用此面板管理账号。', stale: '账号池或当前选择已改变，请刷新后再操作。',
-  quotaUnavailable: 'CPA 未能查询此账号的额度，这不代表剩余额度为零。', loginPending: '已有登录正在进行，请完成登录或等它过期后再试。', loginExpired: '登录已过期，请重新发起。',
+  quotaUnavailable: 'CPA 未能查询此账号的额度，这不代表剩余额度为零。',
+  accountAuthentication: '此账号的登录认证已失效。请点击下方“重新登录”；当前额度未知。',
+  accountRelogin: '重新登录', reloginWaiting: '请通过下方链接登录同一个账号，当前代理选择保持不变。',
+  reloginChecking: '登录流程已完成，正在核查此账号的额度…', reloginVerified: '此账号的额度核查已通过，尚未测试模型请求。',
+  reloginUnverified: '尚未验证此账号恢复。如果登录了其他账号，请使用此账号重试。',
+  reloginMissing: '目标账号已不在列表中，请刷新账号核对状态。',
+  reloginLegacy: '请先指定固定代理账号，再使用“重新登录”，以免登录流程暂停原有路由。',
+  loginPending: '已有登录正在进行，请完成登录或等它过期后再试。', loginExpired: '登录已过期，请重新发起。',
 }
 
 async function invoke<T>(action: string, data: Record<string, unknown> = {}, signal?: AbortSignal): Promise<T> {
@@ -68,18 +81,43 @@ async function invoke<T>(action: string, data: Record<string, unknown> = {}, sig
   return result.value as T
 }
 
+type LoginTarget = { id: string; label: string }
+const errorKey = (cause: unknown): AccountKey => cause instanceof Error && Object.hasOwn(accountEn, cause.message) ? cause.message as AccountKey : 'accountError'
+
 export function Accounts({ t, onChanged }: { t: (key: AccountKey) => string; onChanged?: () => void }) {
   const id = useId()
   const [snapshot, setSnapshot] = useState<AccountSnapshot>()
   const [local, setLocal] = useState<LocalStatus>(), [starting, setStarting] = useState(false)
   const [localError, setLocalError] = useState('')
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [key, setKey] = useState('')
-  const [quotas, setQuotas] = useState<Record<string, AccountQuota | string>>({})
+  const [quotas, setQuotas] = useState<Record<string, AccountQuota | { error: AccountKey }>>({})
   const [pending, setPending] = useState<{ action: 'switch' | 'logout'; id: string; label: string; revision: string }>()
-  const [login, setLogin] = useState<{ id: string; url: string }>(), [notice, setNotice] = useState('')
-  const friendly = (cause: unknown) => {
-    const code = cause instanceof Error ? cause.message : ''
-    return Object.hasOwn(accountEn, code) ? t(code as AccountKey) : t('accountError')
+  const [login, setLogin] = useState<{ id: string; url: string; target?: LoginTarget }>(), [notice, setNotice] = useState('')
+  const [relogin, setRelogin] = useState<{ target: LoginTarget; message: AccountKey; detail?: AccountKey }>()
+  const loginStart = useRef<AbortController>()
+  const friendly = (cause: unknown) => t(errorKey(cause))
+  useEffect(() => () => loginStart.current?.abort(), [])
+  const beginLogin = async (target?: LoginTarget) => {
+    if (login || loginStart.current || (target && (!snapshot?.accounts.some(account => account.id === target.id) || snapshot.mode === 'legacy'))) return
+    const abort = new AbortController()
+    loginStart.current = abort
+    setBusy(true); setError(''); setNotice('')
+    if (target) setRelogin({ target, message: 'accountBusy' })
+    try {
+      const value = await invoke<{ id: string; url: string }>('login', {}, abort.signal)
+      if (abort.signal.aborted) return
+      setLogin({ ...value, target })
+      if (target) setRelogin({ target, message: 'reloginWaiting' })
+      else await reload()
+    } catch (cause) {
+      if (!abort.signal.aborted) {
+        if (target) setRelogin({ target, message: 'reloginUnverified', detail: errorKey(cause) })
+        else setError(friendly(cause))
+      }
+    } finally {
+      loginStart.current = undefined
+      if (!abort.signal.aborted) setBusy(false)
+    }
   }
   const run = async (work: () => Promise<void>) => {
     setBusy(true); setError('')
@@ -114,22 +152,62 @@ export function Accounts({ t, onChanged }: { t: (key: AccountKey) => string; onC
   useEffect(() => {
     if (!login) return
     const abort = new AbortController()
+    const target = login.target
     let timer: ReturnType<typeof setTimeout>
+    const expires = setTimeout(() => {
+      abort.abort()
+      if (target) setRelogin({ target, message: 'reloginUnverified', detail: 'loginExpired' })
+      else setError(t('loginExpired'))
+      setLogin(undefined)
+    }, 300_000)
     const poll = async () => {
       try {
         const result = await invoke<{ status: string }>('loginStatus', { id: login.id }, abort.signal)
         if (abort.signal.aborted) return
         if (result.status === 'wait') { timer = setTimeout(poll, 2500); return }
-        setLogin(undefined); setNotice(t(result.status === 'ok' ? 'loginDone' : 'loginFailed'))
-        await reload()
-      } catch (cause) { if (!abort.signal.aborted) { setError(friendly(cause)); setLogin(undefined) } }
+        if (target) {
+          if (result.status !== 'ok') setRelogin({ target, message: 'reloginUnverified', detail: 'loginFailed' })
+          else {
+            setRelogin({ target, message: 'reloginChecking' })
+            const updated = await invoke<AccountSnapshot>('list', {}, abort.signal)
+            if (abort.signal.aborted) return
+            setSnapshot(updated)
+            if (!updated.accounts.some(account => account.id === target.id)) setRelogin({ target, message: 'reloginMissing' })
+            else {
+              try {
+                const checked = await invoke<AccountQuota>('quota', { id: target.id }, abort.signal)
+                if (abort.signal.aborted) return
+                if (checked.accountId !== target.id || !checked.windows?.length) throw new Error('quotaUnavailable')
+                setQuotas(prev => ({ ...prev, [target.id]: checked }))
+                setRelogin({ target, message: 'reloginVerified' })
+              } catch (cause) {
+                if (abort.signal.aborted) return
+                setQuotas(prev => ({ ...prev, [target.id]: { error: errorKey(cause) } }))
+                setRelogin({ target, message: 'reloginUnverified', detail: errorKey(cause) })
+              }
+            }
+          }
+        } else {
+          setNotice(t(result.status === 'ok' ? 'loginDone' : 'loginFailed'))
+          const updated = await invoke<AccountSnapshot>('list', {}, abort.signal)
+          if (abort.signal.aborted) return
+          setSnapshot(updated)
+        }
+        setLogin(undefined)
+      } catch (cause) {
+        if (!abort.signal.aborted) {
+          if (target) setRelogin({ target, message: 'reloginUnverified', detail: errorKey(cause) })
+          else setError(friendly(cause))
+          setLogin(undefined)
+        }
+      }
     }
     timer = setTimeout(poll, 2500)
-    return () => { abort.abort(); clearTimeout(timer) }
+    return () => { abort.abort(); clearTimeout(timer); clearTimeout(expires) }
   }, [login?.id])
   const quota = async (accountId: string) => {
     try { const value = await invoke<AccountQuota>('quota', { id: accountId }); setQuotas(prev => ({ ...prev, [accountId]: value })) }
-    catch (cause) { setQuotas(prev => ({ ...prev, [accountId]: friendly(cause) })) }
+    catch (cause) { setQuotas(prev => ({ ...prev, [accountId]: { error: errorKey(cause) } })) }
   }
   useEffect(() => {
     if (snapshot?.mode === 'fixed' && snapshot.accounts.some(a => a.id === snapshot.selected)) void quota(snapshot.selected)
@@ -137,6 +215,10 @@ export function Accounts({ t, onChanged }: { t: (key: AccountKey) => string; onC
   useEffect(() => {
     if (pending) document.getElementById(`${id}-confirmation`)?.scrollIntoView({ block: 'nearest' })
   }, [pending?.id, pending?.action])
+  const reloginFeedback = (target: LoginTarget) => <div className="gpt-compat-settings__heading">
+    {relogin?.target.id === target.id && <p role="status" className="gpt-compat-settings__hint">{target.label}：{t(relogin.message)}{relogin.detail ? ` ${t(relogin.detail)}` : ''}</p>}
+    {login?.target?.id === target.id && <a href={login.url} target="_blank" rel="noopener noreferrer">{t('openLogin')}</a>}
+  </div>
   return <section className="gpt-compat-settings gpt-compat-accounts" aria-labelledby={`${id}-title`} aria-busy={busy}>
     <header className="gpt-compat-settings__heading"><h3 id={`${id}-title`}>{t('accountTitle')}</h3><p className="gpt-compat-settings__intro">{t('accountHint')}</p></header>
     <div className="gpt-compat-settings__card" aria-busy={starting}>
@@ -161,26 +243,32 @@ export function Accounts({ t, onChanged }: { t: (key: AccountKey) => string; onC
     {notice && <p role="status" className="gpt-compat-settings__hint">{notice}</p>}
     <div className="gpt-compat-settings__actions">
       <Button variant="outline" disabled={busy} onClick={() => void run(reload)}>{t('refreshAccounts')}</Button>
-      <Button variant="outline" disabled={busy || !snapshot?.configured || !!login} onClick={() => void run(async () => { setLogin(await invoke('login')); setNotice(''); await reload() })}>{t('accountAdd')}</Button>
+      <Button variant="outline" disabled={busy || !snapshot?.configured || !!login} onClick={() => void beginLogin()}>{t('accountAdd')}</Button>
       <Button disabled={busy || !snapshot?.configured || snapshot.mode === 'paused'} onClick={() => setPending({ action: 'switch', id: 'paused', label: '', revision: snapshot!.revision })}>{t('accountPause')}</Button>
     </div>
     {busy && <p role="status" className="gpt-compat-settings__hint">{t('accountBusy')}</p>}
-    {login && <div className="gpt-compat-settings__card"><p className="gpt-compat-settings__hint">{t('loginWaiting')}</p><a href={login.url} target="_blank" rel="noopener noreferrer">{t('openLogin')}</a></div>}
+    {login && !login.target && <div className="gpt-compat-settings__card"><p className="gpt-compat-settings__hint">{t('loginWaiting')}</p><a href={login.url} target="_blank" rel="noopener noreferrer">{t('openLogin')}</a></div>}
+    {relogin && !snapshot?.accounts.some(account => account.id === relogin.target.id) && <div className="gpt-compat-settings__card">{reloginFeedback(relogin.target)}</div>}
     {snapshot?.configured && <>
       {snapshot.mode !== 'fixed' && <p className="gpt-compat-settings__notice">{t(snapshot.mode === 'legacy' ? 'accountLegacy' : 'accountPaused')}</p>}
       {snapshot.mode === 'fixed' && !snapshot.accounts.some(a => a.id === snapshot.selected) && <p className="gpt-compat-settings__error">{t('accountMissing')}</p>}
       {!snapshot.accounts.length && <p className="gpt-compat-settings__empty">{t('accountEmpty')}</p>}
       {snapshot.accounts.map(account => {
         const usage = quotas[account.id], selected = snapshot.selected === account.id
+        const authentication = account.unavailable && account.unavailableReason === 'authentication' || usage && 'error' in usage && usage.error === 'accountAuthentication'
         return <div className="gpt-compat-settings__card" key={account.id}>
           <div className="gpt-compat-settings__card-heading"><h4>{account.label}</h4><span className="gpt-compat-settings__hint">{t(selected ? 'accountCurrent' : 'accountStandby')}</span></div>
           <p className="gpt-compat-settings__hint">{[account.plan, account.disabled && t('accountDisabled'), account.unavailable && t('accountUnavailable')].filter(Boolean).join(' · ')}</p>
-          {typeof usage === 'object' && usage.windows.length ? <div className="gpt-compat-accounts__quotas">{usage.windows.map((window, index) => {
+          {authentication && !(usage && 'error' in usage && usage.error === 'accountAuthentication') && <p className="gpt-compat-settings__notice">{t('accountAuthentication')}</p>}
+          {usage && 'windows' in usage && usage.windows.length ? <div className="gpt-compat-accounts__quotas">{usage.windows.map((window, index) => {
             const [group, kind] = window.name.split('/')
             const duration = window.durationMinutes === null ? t(kind === 'primary_window' ? 'primaryQuota' : 'secondaryQuota') : window.durationMinutes >= 1440 ? `${window.durationMinutes / 1440}d` : `${window.durationMinutes / 60}h`
             return <div key={index} className="gpt-compat-accounts__quota"><span>{group === 'main' ? t('mainQuota') : group === 'code-review' ? t('reviewQuota') : group} · {duration}</span><strong>{window.remainingPercent === null ? '—' : `${Math.round(window.remainingPercent)}% ${t('remaining')}`}</strong><progress max={100} value={window.remainingPercent ?? undefined} aria-label={`${group} ${duration}`} /><span>{t('resets')}：{window.resetsAt ? new Date(window.resetsAt * 1000).toLocaleString() : '—'}</span></div>
-          })}<p className="gpt-compat-settings__hint">{t('checked')}：{new Date(usage.checkedAt).toLocaleString()}</p></div> : <p className="gpt-compat-settings__hint">{typeof usage === 'string' ? usage : t('quotaUnknown')}</p>}
+          })}<p className="gpt-compat-settings__hint">{t('checked')}：{new Date(usage.checkedAt).toLocaleString()}</p></div> : <p className="gpt-compat-settings__hint">{usage && 'error' in usage ? t(usage.error) : t('quotaUnknown')}</p>}
+          {relogin?.target.id === account.id && reloginFeedback(relogin.target)}
+          {authentication && snapshot.mode === 'legacy' && <p className="gpt-compat-settings__hint">{t('reloginLegacy')}</p>}
           <div className="gpt-compat-settings__actions">
+            {(authentication || relogin?.target.id === account.id && relogin.message !== 'reloginVerified') && <Button variant="outline" disabled={busy || !!login || snapshot.mode === 'legacy'} onClick={() => void beginLogin({ id: account.id, label: account.label })}>{t('accountRelogin')}</Button>}
             <Button variant={selected ? 'ghost' : 'outline'} disabled={busy || selected && !account.disabled} onClick={() => setPending({ action: 'switch', id: account.id, label: account.label, revision: snapshot.revision })}>{t('accountChoose')}</Button>
             <Button disabled={busy} onClick={() => void run(() => quota(account.id))}>{t('refreshQuota')}</Button>
             <Button className="gpt-compat-settings__remove" disabled={busy || !account.canLogout} onClick={() => setPending({ action: 'logout', id: account.id, label: account.label, revision: snapshot.revision })}>{t('accountRemove')}</Button>

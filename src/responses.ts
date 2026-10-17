@@ -12,9 +12,13 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import type {} from '@deepseek-ai/dsh-settings'
 import { NATIVE_FORMAT, blocksFromOutput, fingerprint, record, replayEnvelope, requestBody, usageFromResponse, type Item } from './responses-wire.ts'
-import { post, type Connection } from './responses-http.ts'
+import { post, postStream, type Connection } from './responses-http.ts'
+import { ResponsesStreamProjection } from './responses-stream.ts'
+import type { NativeContextExtras } from './auxiliary-usage.ts'
 import { codexCompactionWindow, estimateNativeTokens } from './native-budget.ts'
 import { hydrateImages, imageTokens, type ImageReader } from './responses-images.ts'
+import { serverContextManagement } from './responses-server-compaction.ts'
+import { installResponsesDiagnostics } from './diagnostics.ts'
 
 export interface ModelConfig {
   id: string; contextWindow: number; maxTokens: number
@@ -29,7 +33,8 @@ export interface ProviderConfig {
   timeoutMs: number
   maxResponseBytes: number
   maxRequestBytes: number
-  nativeContextMode: 'responses' | 'codex-v2'
+  nativeContextMode: 'responses' | 'codex-v2' | 'responses-server'
+  serverCompactionThreshold?: number
   tokenEstimateMultiplier: number
 }
 export interface Config { providers: Record<string, ProviderConfig> }
@@ -41,7 +46,8 @@ export const PlainConfig: z<Config> = z.object({ providers: z.dict(z.object({
   customApplyPatch: z.boolean().default(true), timeoutMs: z.number().step(1).min(1).max(2147483647).default(300000),
   maxResponseBytes: z.number().step(1).min(1).default(16777216),
   maxRequestBytes: z.number().step(1).min(1).default(16777216),
-  nativeContextMode: z.union(['responses', 'codex-v2']).default('responses'),
+  nativeContextMode: z.union(['responses', 'codex-v2', 'responses-server']).default('responses'),
+  serverCompactionThreshold: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER),
   tokenEstimateMultiplier: z.number().min(1).max(8).default(1.5),
 })).required() })
 export const Config = PlainConfig.required().volatile()
@@ -55,9 +61,12 @@ export function validateConfig(config: Config): void {
     credentialRef(profile.apiKeyEnv)
     const names = new Set<string>()
     if (!profile.models.length) throw new Error('Declare at least one model with its actual context and output capacities')
+    if (profile.nativeContextMode === 'responses-server') serverContextManagement(profile.serverCompactionThreshold)
+    else if (profile.serverCompactionThreshold !== undefined) throw new Error('Server compaction threshold requires explicit server mode')
     for (const model of profile.models) {
       if (!model.id.trim() || names.has(model.id) || model.maxTokens >= model.contextWindow) throw new Error('Invalid or duplicate model capacity declaration')
       names.add(model.id)
+      if (profile.nativeContextMode === 'responses-server' && profile.serverCompactionThreshold! >= model.contextWindow - model.maxTokens) throw new Error('Server compaction threshold must be below each model input budget')
       const efforts = model.reasoningEfforts ?? []
       if (efforts.some(effort => !effort.trim() || effort.trim() !== effort)
         || new Set(efforts).size !== efforts.length
@@ -106,14 +115,35 @@ export class ResponsesAdapter extends LlmAdapter {
     const snapshot = await this.snapshot(provider, model)
     const connection = await this.connection(snapshot.profile, signal)
     const origin = this.origin(provider, model, connection, snapshot.profile.nativeContextMode)
+    const serverManaged = snapshot.profile.nativeContextMode === 'responses-server'
     const wire = (options: GenerateOptions, input: JsonValue[]) => requestBody({ ...options,
       messages: options.messages.filter(message => message.role === 'system'),
       adapterContext: { format: NATIVE_FORMAT, scope: origin, input },
     }, origin, snapshot.profile.customApplyPatch)
-    return { model: snapshot.model, stream: options => this.generate(options, snapshot.profile, connection), nativeContext: {
+    const compactWithUsage: NonNullable<NativeContextExtras['compactWithUsage']> = async (options, input) => {
+      if (serverManaged) throw new LlmError('Server-managed compaction does not use a separate compact call', 'SERVER_MANAGED_CONTEXT')
+      if (snapshot.profile.nativeContextMode === 'codex-v2') {
+        const body = wire(options, [...input, { type: 'compaction_trigger' }])
+        this.checkSize(snapshot.profile, body)
+        const hydrated = await hydrateImages(body, this.readImage, snapshot.profile.maxRequestBytes, options.signal)
+        this.checkSize(snapshot.profile, hydrated.body)
+        const response = await post(connection, 'responses', hydrated.body, options.signal)
+        return { input: codexCompactionWindow(input as Item[], response) as JsonValue[], usage: usageFromResponse(response.usage), accounting: 'auxiliary' }
+      }
+      const instructions = options.messages.filter(message => message.role === 'system').flatMap(message => message.content.map(block => block.type === 'text' ? block.text : '')).join('\n')
+      const body = { model, input, ...instructions ? { instructions } : {} }
+      this.checkSize(snapshot.profile, body)
+      const hydrated = await hydrateImages(body, this.readImage, snapshot.profile.maxRequestBytes, options.signal)
+      this.checkSize(snapshot.profile, hydrated.body)
+      const response = await post(connection, 'responses/compact', hydrated.body, options.signal)
+      return { input: hydrated.restore(this.compactOutput(response)) as JsonValue[], usage: usageFromResponse(response.usage), accounting: 'auxiliary' }
+    }
+    const nativeContext: NonNullable<PreparedAdapterCall['nativeContext']> & NativeContextExtras = {
       format: NATIVE_FORMAT, scope: origin,
-      encode: messages => requestBody({ provider, model, messages }, origin, snapshot.profile.customApplyPatch).input as JsonValue[],
+      ...(serverManaged ? { serverManaged: true } : {}),
+      encode: messages => requestBody({ provider, model, messages }, origin, snapshot.profile.customApplyPatch, serverManaged).input as JsonValue[],
       count: async (options, input) => {
+        if (serverManaged) throw new LlmError('Server-managed compaction does not use a separate token count', 'SERVER_MANAGED_CONTEXT')
         const body = wire(options, input)
         const counted = { model, input: body.input, ...body.tools ? { tools: body.tools } : {} }
         this.checkSize(snapshot.profile, counted)
@@ -124,24 +154,10 @@ export class ResponsesAdapter extends LlmAdapter {
         if (!Number.isSafeInteger(response.input_tokens) || (response.input_tokens as number) < 0) throw new LlmError('Native token counter returned no valid count', 'INVALID_TOKEN_COUNT')
         return response.input_tokens as number
       },
-      compact: async (options, input) => {
-        if (snapshot.profile.nativeContextMode === 'codex-v2') {
-          const body = wire(options, [...input, { type: 'compaction_trigger' }])
-          this.checkSize(snapshot.profile, body)
-          const hydrated = await hydrateImages(body, this.readImage, snapshot.profile.maxRequestBytes, options.signal)
-          this.checkSize(snapshot.profile, hydrated.body)
-          const response = await post(connection, 'responses', hydrated.body, options.signal)
-          return codexCompactionWindow(input as Item[], response) as JsonValue[]
-        }
-        const instructions = options.messages.filter(message => message.role === 'system').flatMap(message => message.content.map(block => block.type === 'text' ? block.text : '')).join('\n')
-        const body = { model, input, ...instructions ? { instructions } : {} }
-        this.checkSize(snapshot.profile, body)
-        const hydrated = await hydrateImages(body, this.readImage, snapshot.profile.maxRequestBytes, options.signal)
-        this.checkSize(snapshot.profile, hydrated.body)
-        const response = await post(connection, 'responses/compact', hydrated.body, options.signal)
-        return hydrated.restore(this.compactOutput(response)) as JsonValue[]
-      },
-    } }
+      compact: async (options, input) => (await compactWithUsage(options, input)).input,
+      compactWithUsage,
+    }
+    return { model: snapshot.model, stream: options => this.generate(options, snapshot.profile, connection), nativeContext }
   }
   override async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
     yield* (await this.prepareCall(options.provider, options.model, options.signal)).stream(options)
@@ -157,40 +173,54 @@ export class ResponsesAdapter extends LlmAdapter {
   private origin(provider: string, model: string, connection: Connection, mode: ProviderConfig['nativeContextMode']): string {
     const base = [provider, model, connection.baseURL.replace(/\/+$/, ''), fingerprint(connection.apiKey)]
     if (connection.accountIdentity) base.push('cpa-account', connection.accountIdentity)
-    return fingerprint(mode === 'codex-v2' ? [...base, 'codex-v2'] : base)
+    return fingerprint(mode === 'responses' ? base : [...base, mode])
   }
   private checkSize(profile: ProviderConfig, body: Item): void {
     if (Buffer.byteLength(JSON.stringify(body)) > profile.maxRequestBytes) throw new LlmError('Responses request exceeds configured limit', 'RESPONSES_SIZE_LIMIT')
   }
   private async *generate(options: GenerateOptions, profile: ProviderConfig, connection: Connection): AsyncIterable<StreamChunk> {
     const origin = this.origin(options.provider, options.model, connection, profile.nativeContextMode)
-    const body = requestBody(options, origin, profile.customApplyPatch)
+    const serverManaged = profile.nativeContextMode === 'responses-server'
+    const body = requestBody(options, origin, profile.customApplyPatch, serverManaged)
+    if (serverManaged) body.context_management = serverContextManagement(profile.serverCompactionThreshold)
     if (Buffer.byteLength(JSON.stringify(body)) > profile.maxRequestBytes) throw new LlmError('Responses request exceeds configured limit', 'RESPONSES_SIZE_LIMIT')
     const hydrated = await hydrateImages(body, this.readImage, profile.maxRequestBytes, options.signal)
     this.checkSize(profile, hydrated.body)
-    const response = await post(connection, 'responses', hydrated.body, options.signal)
+    const projection = new ResponsesStreamProjection(serverManaged)
+    let response: Item | undefined
+    for await (const packet of postStream(connection, 'responses', hydrated.body, options.signal)) {
+      if (packet.kind === 'event') {
+        for (const chunk of projection.accept(packet.event)) { options.signal?.throwIfAborted(); yield chunk }
+      }
+      else response = packet.response
+    }
     options.signal?.throwIfAborted()
+    if (!response) throw new LlmError('Responses stream ended before a terminal response', 'RESPONSES_TRUNCATED')
     const incomplete = response.status === 'incomplete'
     if (response.status !== 'completed' && !incomplete) throw new LlmError('Responses did not complete', 'RESPONSES_GENERATION_FAILED')
     if (typeof response.id !== 'string' || !response.id) throw new LlmError('Responses response has no identity', 'INVALID_RESPONSES_PAYLOAD')
-    const blocks = blocksFromOutput(response.output)
     const usage = usageFromResponse(response.usage)
     // Never execute partial tool inputs. A truncated reply reports usage and its terminal reason only.
     if (incomplete) {
       if (!record(response.incomplete_details) || response.incomplete_details.reason !== 'max_output_tokens') throw new LlmError('Responses stopped before completion', 'RESPONSES_GENERATION_FAILED')
+      if (!Array.isArray(response.output)) throw new LlmError('Responses output must be an array', 'INVALID_RESPONSES_PAYLOAD')
+      const visible = blocksFromOutput(response.output.filter(item => !record(item) || item.type !== 'function_call' && item.type !== 'custom_tool_call'), serverManaged)
+      for (const chunk of projection.complete(response, visible, false)) { options.signal?.throwIfAborted(); yield chunk }
+      options.signal?.throwIfAborted()
       if (usage) yield { type: 'usage', usage }
+      options.signal?.throwIfAborted()
       yield { type: 'finish', reason: { kind: 'max-tokens' } }
       return
     }
-    if (!blocks.length) throw new LlmError('Responses produced no visible output or tools', 'EMPTY_RESPONSE')
-    for (const [index, block] of blocks.entries()) {
-      yield { type: 'block-start', index, blockType: block.type }
-      if (block.type === 'text') yield { type: 'text-delta', index, text: block.text }
-      else if (block.type === 'reasoning') yield { type: 'reasoning-delta', index, text: block.text }
-      else if (block.type === 'tool-call') yield { type: 'tool-call-delta', index, id: block.id, name: block.name, argumentsDelta: block.arguments }
-      yield { type: 'block-end', index, block }
+    const blocks = blocksFromOutput(response.output, serverManaged)
+    if (!blocks.length) {
+      if (serverManaged && (response.output as Item[]).some(item => item.type === 'compaction')) throw new LlmError('Server compaction completed without visible output; no response was committed', 'COMPACTION_ONLY_RESPONSE')
+      throw new LlmError('Responses produced no visible output or tools', 'EMPTY_RESPONSE')
     }
+    for (const chunk of projection.complete(response, blocks)) { options.signal?.throwIfAborted(); yield chunk }
+    options.signal?.throwIfAborted()
     if (usage) yield { type: 'usage', usage }
+    options.signal?.throwIfAborted()
     yield { type: 'finish', reason: { kind: blocks.some(block => block.type === 'tool-call') ? 'tool-calls' : 'stop' },
       replayState: replayEnvelope(response.output as Item[], response.id, origin, blocks) }
   }
@@ -198,6 +228,7 @@ export class ResponsesAdapter extends LlmAdapter {
   /** Explicit compact transport only. Caller owns context budgeting, durable commit, and selection. */
   async compact(provider: string, model: string, input: readonly Item[], signal?: AbortSignal): Promise<{ output: Item[]; usage?: ReturnType<typeof usageFromResponse> }> {
     const { profile } = await this.snapshot(provider, model)
+    if (profile.nativeContextMode === 'responses-server') throw new LlmError('Server-managed compaction does not use a separate compact call', 'SERVER_MANAGED_CONTEXT')
     const v2 = profile.nativeContextMode === 'codex-v2'
     const body = v2 ? { model, input: [...structuredClone(input), { type: 'compaction_trigger' }], stream: true, store: false, include: ['reasoning.encrypted_content'] } : { model, input: structuredClone(input) }
     if (Buffer.byteLength(JSON.stringify(body)) > profile.maxRequestBytes) throw new LlmError('Compact request exceeds configured limit', 'RESPONSES_SIZE_LIMIT')
@@ -223,6 +254,7 @@ export const inject = ['llm']
 export function apply(ctx: Context, config: Volatile<Config>): void {
   let current = structuredClone(config.get()) as Config
   validateConfig(current)
+  installResponsesDiagnostics(ctx, () => current)
   const adapter = new ResponsesAdapter(() => current, async profile => {
     const ref = credentialRef(profile.apiKeyEnv)
     const credentials = ctx.get('credentials')

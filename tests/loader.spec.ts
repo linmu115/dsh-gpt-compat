@@ -10,7 +10,7 @@ import LlmRuntime, { ToolCallId, createUserMessage, type GenerateOptions } from 
 import SessionStore, { Session, SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
+import ToolRuntime, { TOOL_RUNTIME_SCHEDULER, defineContentToolFixture } from '@deepseek-ai/dsh-tools'
 import AgentRegistry, { assembleContextFor, installModelSelection, type Agent, type ModelSelectionRef } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
@@ -55,6 +55,9 @@ async function setup(adapter: MockAdapter, responsesURL?: string, managedContext
   await writeFile(path, managedContext ? yaml.replace('    bindings:', '    context:\n      enabled: true\n      reserveTokens: 128\n      marginTokens: 0\n      summaryMaxTokens: 256\n    bindings:') : yaml)
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(path).href } })
   await ctx.loader.await()
+  // RC2's agent loop dispatches through this symbol-backed public scheduler.
+  // Fail at fixture setup if duplicate SDK copies split its module identity.
+  expect(ctx.tools[TOOL_RUNTIME_SCHEDULER]?.prepare).toBeTypeOf('function')
   ctx.llm.registerAdapter(responsesURL ? ['other'] : ['mock', 'other'], adapter)
   ctx.tools.register(defineContentToolFixture({ name: 'write', description: 'legacy', parameters: {}, execute: async () => [{ type: 'text', text: 'legacy ran' }] }))
   if (managedContext) ctx.on('session/flush', async session => { await writeFile(join(root!, `${session.id}.json`), JSON.stringify(session.snapshotEvents())) })

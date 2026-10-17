@@ -2,6 +2,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { SessionEvent } from '@deepseek-ai/dsh-session/types'
 import { useProgress } from './progress-store.ts'
 import { ProgressCard } from './Progress.tsx'
+import { readCompactionUsage, type AuxiliaryUsage } from '../auxiliary-usage.ts'
+import { UsageDetails, type UsageKey } from './Usage.tsx'
 
 // Structural public event contribution contract also works with RC2 hosts whose
 // generated declaration bundle does not yet export ui-conversation/client.
@@ -22,6 +24,7 @@ export interface CompactionTrace {
   method: 'native-compact' | 'portable-summary'
   provider?: string
   model?: string
+  usage?: AuxiliaryUsage
 }
 
 // Reconstruct only display metadata. Never put requests, cited notes, summaries,
@@ -42,7 +45,7 @@ export const compactionTraceDefinition: TraceDefinition = {
   },
   update({ state }, { event }) {
     return event.type === 'context/operation-result'
-      ? { ...state, completedAt: event.time, resultSeq: event.seq } : state
+      ? { ...state, completedAt: event.time, resultSeq: event.seq, usage: readCompactionUsage(event.data.output) } : state
   },
   buildViewNode(context) {
     return context.state ? { key: context.key, kind: context.kind, id: context.id,
@@ -68,7 +71,7 @@ export const compactionTrajectoryDefinition: TraceDefinition = {
   },
 }
 
-export function CompactionTraceRow({ node, sessionId }: { node: { data: CompactionTrace }; sessionId: string }) {
+export function CompactionTraceRow({ node, sessionId, t }: { node: { data: CompactionTrace }; sessionId: string; t?: (key: UsageKey) => string }) {
   const value = node.data
   const progress = useProgress(sessionId)
   const live = progress.value?.operationSeq === value.seq && progress.value.phase !== 'sent' ? progress.value : null
@@ -83,6 +86,7 @@ export function CompactionTraceRow({ node, sessionId }: { node: { data: Compacti
       <p>{value.method === 'native-compact' ? 'GPT 原生压缩' : '历史摘要压缩'}{value.model ? ` · ${value.model}` : ''}</p>
       <p>{complete ? '此段历史压缩已返回结果。' : live?.phase === 'compressing' ? '正在等待此段历史压缩结果。' : '未记录完成结果；此记录不表示压缩仍在运行。'}</p>
       <p>仅整理较早的历史，本次输入和引用原文仍按发送流程保留。</p>
+      {complete && <UsageDetails usage={value.usage ?? readCompactionUsage(undefined)} t={t} />}
     </div>
   </details></>
 }
@@ -94,6 +98,6 @@ export function installCompactionTrace(ctx: Context): void {
     conversation.events.register(compactionTrajectoryDefinition)
     const slots = c.slots as unknown as { inject(name: string, register: () => (() => void)): unknown; register(options: Record<string, unknown>, component: unknown): () => void }
     slots.inject('conversation.chat.node', () => slots.register({ name: 'conversation.chat.node',
-      key: 'gpt-context-operation', id: 'gpt-context-operation' }, CompactionTraceRow))
+      key: 'gpt-context-operation', id: 'gpt-context-operation', locale: 'gpt.compat' }, CompactionTraceRow))
   })
 }

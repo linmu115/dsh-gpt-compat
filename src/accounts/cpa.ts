@@ -6,6 +6,12 @@ type Row = Record<string, unknown>
 const record = (value: unknown): Row => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Row : {}
 const text = (value: unknown): string => typeof value === 'string' ? value : ''
 const number = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) ? value : null
+// Only classify exact, bounded CPA codes. Never expose or search arbitrary error text.
+function authenticationUnavailable(row: Row): boolean {
+  const message = text(row.status_message)
+  return row.unavailable === true && row.status === 'error' && message.length <= 64
+    && ['unauthorized', 'token_expired', 'invalid_token', 'authentication_error'].includes(message.trim().toLowerCase())
+}
 export class AccountError extends Error { constructor(public code: string) { super(code) } }
 export interface AccountCredentials { get(): Promise<string | undefined>; set(value: string): Promise<void> }
 interface Account extends AccountView { index: string; name: string; accountId: string }
@@ -67,6 +73,7 @@ export class CpaAccounts {
         ...(text(row.email) ? { email: text(row.email) } : {}),
         ...(text(claims.plan_type) ? { plan: text(claims.plan_type) } : {}),
         disabled: row.disabled, unavailable: row.unavailable === true,
+        ...(authenticationUnavailable(row) ? { unavailableReason: 'authentication' as const } : {}),
         canLogout: row.runtime_only !== true && row.source === 'file' && /^[^/\\]+\.json$/i.test(name)
           && all.filter(other => other.name === name).length === 1,
       }
@@ -77,8 +84,8 @@ export class CpaAccounts {
   private revision(accounts: Account[], selected: string): string {
     return createHash('sha256').update(JSON.stringify([selected, accounts.map(a => [a.id, a.name, a.accountId, a.disabled, a.canLogout]).sort()])).digest('hex')
   }
-  private async selection(): Promise<string> {
-    const data = await this.api('routing/codex-account')
+  private async selection(key?: string): Promise<string> {
+    const data = await this.api('routing/codex-account', 'GET', undefined, key)
     if (data.contract !== 'codex-fixed-account/v1' || typeof data.auth_index !== 'string') throw new AccountError('fixedUnsupported')
     return data.auth_index
   }
@@ -131,9 +138,11 @@ export class CpaAccounts {
   configure(key: string): Promise<AccountSnapshot> {
     return this.exclusive(async () => {
       if (!key.trim() || key.length > 4096) throw new AccountError('invalidInput')
-      const accounts = await this.accounts(key.trim())
-      await this.credentials.set(key.trim())
-      return this.snapshot(accounts, await this.selection())
+      const candidate = key.trim()
+      const accounts = await this.accounts(candidate)
+      const snapshot = this.snapshot(accounts, await this.selection(candidate))
+      await this.credentials.set(candidate)
+      return snapshot
     })
   }
   private target(accounts: Account[], id: string): Account {
@@ -180,6 +189,7 @@ export class CpaAccounts {
       auth_index: account.index, method: 'GET', url: 'https://chatgpt.com/backend-api/wham/usage',
       header: { Authorization: 'Bearer $TOKEN$', 'Chatgpt-Account-Id': account.accountId, Accept: 'application/json' },
     })
+    if (response.status_code === 401) throw new AccountError('accountAuthentication')
     if (response.status_code !== 200) throw new AccountError('quotaUnavailable')
     let data: Row
     try { data = record(JSON.parse(text(response.body))) } catch { throw new AccountError('invalidResponse') }

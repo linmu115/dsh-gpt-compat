@@ -6,7 +6,8 @@ import { createRequire } from 'node:module'
 
 const host = resolve(import.meta.dirname, '../host-gpt-candidate')
 const primitives = resolve(host, 'packages/client/ui-primitives/src')
-const primitiveRequire = createRequire(resolve(import.meta.dirname, 'package.json'))
+const primitiveRequire = createRequire(resolve(host, 'packages/client/ui-primitives/package.json'))
+const hostRequire = createRequire(resolve(host, 'package.json'))
 const { paths } = JSON.parse(readFileSync(resolve(import.meta.dirname, 'tsconfig.compat02.json'), 'utf8')).compilerOptions
 // The published Cordis package erases this const enum. Match TypeScript's
 // compile-time inlining when Vitest mixes patched source with published SDKs.
@@ -46,6 +47,11 @@ export default defineConfig({
     } },
   ],
   resolve: { dedupe: ['react', 'react-dom'], alias: [...sourceAliases,
+    // The source agent loop and this fixture must share the published scheduler
+    // Symbol and Cordis runtime. A local peer copy is not the same module as the
+    // host's pnpm copy, even when their versions and bytes match.
+    { find: /^@deepseek-ai\/dsh-tools$/, replacement: hostRequire.resolve('@deepseek-ai/dsh-tools') },
+    { find: /^@deepseek-ai\/cordis$/, replacement: hostRequire.resolve('@deepseek-ai/cordis') },
     { find: '@deepseek-ai/dsh-client-ui-primitives', replacement: 'virtual:official-primitives-under-test' },
     { find: 'clsx', replacement: primitiveRequire.resolve('clsx') },
     { find: '@dsh-test/mock-adapter', replacement: resolve(host, 'packages/core/agent-loop/tests/mock-adapter.ts') },
