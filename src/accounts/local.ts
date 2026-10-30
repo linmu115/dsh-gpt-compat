@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
-import { open, realpath, stat, unlink } from 'node:fs/promises'
-import { dirname, win32 } from 'node:path'
+import { access, open, realpath, stat, unlink } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { dirname, win32, posix } from 'node:path'
 import { connect } from 'node:net'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { AccountError } from './cpa.ts'
@@ -16,8 +17,9 @@ interface Runtime {
   check?(config: LocalLaunchConfig): Promise<string | undefined>
 }
 
-export function normalizeLocalLaunch(config: LocalLaunchConfig): LocalLaunchConfig {
-  return { executable: win32.normalize(config.executable), configFile: win32.normalize(config.configFile), passwordFile: win32.normalize(config.passwordFile) }
+export function normalizeLocalLaunch(config: LocalLaunchConfig, platform: string = process.platform): LocalLaunchConfig {
+  const paths = platform === 'win32' ? win32 : posix
+  return { executable: paths.normalize(config.executable), configFile: paths.normalize(config.configFile), passwordFile: paths.normalize(config.passwordFile) }
 }
 const reportedFileFailures = new Set<string>()
 // Keep diagnostics useful without exposing a password, file contents, or raw paths.
@@ -28,12 +30,17 @@ function reportFileFailure(issue: string, path: string, code: unknown): void {
   reportedFileFailures.add(diagnostic)
   console.warn('[gpt-compat local CPA] File check failed:', diagnostic)
 }
-export async function checkLocalLaunch(config: LocalLaunchConfig): Promise<string | undefined> {
-  if (process.platform !== 'win32') return 'localUnsupported'
-  if (![config.executable, config.configFile, config.passwordFile].every(path => win32.isAbsolute(path)) || !config.executable.toLowerCase().endsWith('.exe')) return 'localConfigInvalid'
+export async function checkLocalLaunch(config: LocalLaunchConfig, platform: string = process.platform): Promise<string | undefined> {
+  if (!['win32', 'darwin'].includes(platform)) return 'localUnsupported'
+  const paths = platform === 'win32' ? win32 : posix
+  if (![config.executable, config.configFile, config.passwordFile].every(path => paths.isAbsolute(path) && !path.includes('\0')) || (platform === 'win32' && !config.executable.toLowerCase().endsWith('.exe'))) return 'localConfigInvalid'
   for (const [path, issue] of [[config.executable, 'localExecutableMissing'], [config.configFile, 'localConfigMissing'], [config.passwordFile, 'localPasswordMissing']]) {
     try { if (!(await stat(path!)).isFile()) return issue }
     catch (error) { reportFileFailure(issue!, path!, (error as NodeJS.ErrnoException).code); return issue }
+  }
+  if (platform === 'darwin') {
+    try { await access(config.executable, constants.X_OK) }
+    catch { return 'localExecutableNotRunnable' }
   }
 }
 
@@ -68,6 +75,7 @@ export async function probeLocal(endpoint: string): Promise<LocalState> {
 }
 
 interface LaunchPorts {
+  platform?: string
   check(config: LocalLaunchConfig): Promise<string | undefined>
   lock(path: string): Promise<{ close(): Promise<void> }>
   remove(path: string): Promise<void>
@@ -91,7 +99,7 @@ const launchPorts: LaunchPorts = {
 export async function launchLocal(config: LocalLaunchConfig, endpoint: string, ports: LaunchPorts = launchPorts): Promise<void> {
   const issue = await ports.check(config)
   if (issue) throw new AccountError(issue)
-  config = normalizeLocalLaunch(config)
+  config = normalizeLocalLaunch(config, ports.platform ?? process.platform)
   try { config = { ...config, executable: await ports.canonical(config.executable), configFile: await ports.canonical(config.configFile) } }
   catch { throw new AccountError('localLaunchFailed') }
   // Also serialize separate DSH instances sharing this CPA executable. A stale

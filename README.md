@@ -1,3 +1,5 @@
+> RC3 Windows/macOS candidate: [0.6.0-dsh021rc3.1](docs/RELEASE-RC3.md).
+
 > Current local release: **0.6.0-dsh021.1**, Accounts **0.1.4-dsh021.1**, exact DSH **0.2.1-rc.2** with **gpt-dsh021.1**. See [current release](docs/dsh021-release.md). Older RC2 sections below retain their historical scope.
 
 # DSH GPT compatibility

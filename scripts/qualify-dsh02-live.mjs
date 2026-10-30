@@ -43,11 +43,11 @@ export async function qualify(runtime, dataRoot, env = process.env) {
   check(!nested(actualRuntime, options.dataRoot) && !nested(options.dataRoot, actualRuntime), 'RUNTIME_DATA_OVERLAP')
   const runtimePackage = JSON.parse(await readFile(join(actualRuntime, 'package.json'), 'utf8'))
   check(runtimePackage.private === true && (runtimePackage.name === 'dsh-gpt-compat-host-candidate' ||
-    (runtimePackage.name === 'dsh-gpt-compat-independent-host' && runtimePackage.version === '0.2.1-rc.2+gpt-dsh021.1' &&
-      runtimePackage.dshManagedPatch?.id === 'gpt-dsh021.1' && runtimePackage.dshManagedPatch?.requiresIndependentRuntime === true && runtimePackage.dshManagedPatch?.upstreamVersion === '0.2.1-rc.2')), 'INDEPENDENT_RUNTIME_REQUIRED')
+    (runtimePackage.name === 'dsh-gpt-compat-independent-host' && runtimePackage.version === '0.2.1-rc.3+gpt-dsh021rc3.1' &&
+      runtimePackage.dshManagedPatch?.id === 'gpt-dsh021rc3.1' && runtimePackage.dshManagedPatch?.requiresIndependentRuntime === true && runtimePackage.dshManagedPatch?.upstreamVersion === '0.2.1-rc.3')), 'INDEPENDENT_RUNTIME_REQUIRED')
   const installed = JSON.parse(await readFile(join(actualRuntime, 'node_modules/dsh-gpt-compat/package.json'), 'utf8'))
   const session = JSON.parse(await readFile(join(actualRuntime, 'node_modules/@deepseek-ai/dsh-session/package.json'), 'utf8'))
-  check(session.version === '0.2.1-rc.2+gpt-dsh021.1', 'WRONG_HOST_BASELINE')
+  check(session.version === '0.2.1-rc.3+gpt-dsh021rc3.1', 'WRONG_HOST_BASELINE')
   // mkdir without recursive prevents a replay from touching an existing data root.
   await mkdir(options.dataRoot)
   const report = { schemaVersion: 1, passed: false, mode: options.offlineSynthetic ? 'offline-synthetic' : 'live-fixed-account',

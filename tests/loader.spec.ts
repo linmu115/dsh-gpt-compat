@@ -16,6 +16,8 @@ import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import LocalSubprocess from '@deepseek-ai/dsh-subprocess-local'
 import Pwsh from '@deepseek-ai/dsh-pwsh-local'
+import Bash from '@deepseek-ai/dsh-bash-local'
+const shellCommand = (windows: string, posix: string) => process.platform === 'win32' ? windows : posix
 import * as ShellEnv from '@deepseek-ai/dsh-shell-env'
 import * as Compat from '../src/index.ts'
 import * as Responses from '../src/responses.ts'
@@ -43,7 +45,7 @@ async function setup(adapter: MockAdapter, responsesURL?: string, managedContext
   const modules = new Map<string, unknown>([
     ['llm', LlmRuntime], ['sessions', SessionStore], ['projection', SessionProjectionRegistry],
     ['prompt', SystemPrompt], ['tools', ToolRuntime], ['agents', AgentRegistry], ['loop', AgentLoop],
-    ['fs', LocalFileSystem], ['subprocess', LocalSubprocess], ['shell', Pwsh], ['shell-env', ShellEnv], ['compat', Compat],
+    ['fs', LocalFileSystem], ['subprocess', LocalSubprocess], ['shell', process.platform === 'win32' ? Pwsh : Bash], ['shell-env', ShellEnv], ['compat', Compat],
   ])
   if (responsesURL) modules.set('responses', Responses)
   ctx.loader.internal = { version: 'v2', async import(id: string) {
@@ -331,22 +333,22 @@ it('preflights a whole patch and supports guarded moves/deletes', async () => {
   await expect(readFile(join(root!, 'b.txt'))).rejects.toMatchObject({ code: 'ENOENT' })
 }, 30_000)
 
-it('passes stdin to a real PowerShell process and denies handles from another agent', async () => {
+it('passes stdin to a real native shell process and denies handles from another agent', async () => {
   const context = await setup(new MockAdapter([textResponse('ready'), textResponse('ready'), textResponse('switched')]))
   const a = await agent(context, 'process-a')
   const b = await agent(context, 'process-b')
   await turn(context, a.value, 'ready')
   await turn(context, b.value, 'ready')
-  const identity = output(await execute(context, a.value, 'exec_command', { cmd: 'Write-Output "session=$env:DSH_SESSION_ID shell=$env:DSH_SHELL"', yield_time_ms: 10000 }))
+  const identity = output(await execute(context, a.value, 'exec_command', { cmd: shellCommand('Write-Output "session=$env:DSH_SESSION_ID shell=$env:DSH_SHELL"', 'printf "session=%s shell=%s\\n" "$DSH_SESSION_ID" "$DSH_SHELL"'), yield_time_ms: 10000 }))
   expect(identity).toContain('session=process-a shell=1')
-  const started = output(await execute(context, a.value, 'exec_command', { cmd: '$line = [Console]::ReadLine(); Write-Output "received:$line"', yield_time_ms: 0 }))
+  const started = output(await execute(context, a.value, 'exec_command', { cmd: shellCommand('$line = [Console]::ReadLine(); Write-Output "received:$line"', 'IFS= read -r line; printf "received:%s\\n" "$line"'), yield_time_ms: 0 }))
   const id = Number(started.match(/session ID (\d+)/)?.[1])
   expect(id).toBeGreaterThan(0)
   expect((await execute(context, b.value, 'write_stdin', { session_id: id })).isError).toBe(true)
   const result = output(await execute(context, a.value, 'write_stdin', { session_id: id, chars: 'hello\n', yield_time_ms: 10000 }))
   expect(result).toContain('received:hello')
   expect(result).toContain('Process exited with code 0')
-  const waiting = output(await execute(context, a.value, 'exec_command', { cmd: 'Write-Output "before-switch"; Start-Sleep -Seconds 120', yield_time_ms: 1000 }))
+  const waiting = output(await execute(context, a.value, 'exec_command', { cmd: shellCommand('Write-Output "before-switch"; Start-Sleep -Seconds 120', 'printf "before-switch\\n"; sleep 120'), yield_time_ms: 1000 }))
   expect(waiting).toContain('session ID')
   a.selection.current = { provider: 'other', model: 'gpt-test' }
   await turn(context, a.value, 'switch')
@@ -357,7 +359,7 @@ it('unloads and reloads while commands are alive, restores legacy tools, and kee
   const context = await setup(new MockAdapter([textResponse('ready'), textResponse('continued'), textResponse('reloaded')]))
   const a = await agent(context, 'reload')
   await turn(context, a.value, 'ready')
-  const running = output(await execute(context, a.value, 'exec_command', { cmd: 'Start-Sleep -Seconds 120', yield_time_ms: 0 }))
+  const running = output(await execute(context, a.value, 'exec_command', { cmd: shellCommand('Start-Sleep -Seconds 120', 'sleep 120'), yield_time_ms: 0 }))
   expect(running).toContain('session ID')
   const entry = [...context.loader.entries()].find(entry => entry.options.name === 'compat')
   expect(entry?.fiber).toBeDefined()
@@ -392,7 +394,7 @@ it('retains a switch notice when admission fails before it is logged', async () 
   const context = await setup(new MockAdapter([textResponse('ready'), textResponse('retry')]))
   const a = await agent(context, 'notice-retry')
   await turn(context, a.value, 'ready')
-  await execute(context, a.value, 'exec_command', { cmd: 'Start-Sleep -Seconds 120', yield_time_ms: 0 })
+  await execute(context, a.value, 'exec_command', { cmd: shellCommand('Start-Sleep -Seconds 120', 'sleep 120'), yield_time_ms: 0 })
   a.selection.current = { provider: 'other', model: 'gpt-test' }
   const dispose = a.value.ctx.on('agent/pre-step', async (_payload, next) => {
     await next()

@@ -1,6 +1,6 @@
 {
   "name": "dsh-gpt-compat-accounts",
-  "version": "0.1.4-dsh021.1",
+  "version": "0.1.4-dsh021rc3.1",
   "type": "module",
   "license": "MIT",
   "main": "lib/index.mjs",
@@ -20,11 +20,14 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.5",
     "@deepseek-ai/schemastery": "3.18.5",
-    "@deepseek-ai/dsh-credentials": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-client-connection": "0.2.1-rc.2"
+    "@deepseek-ai/dsh-credentials": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-connection": "0.2.1-rc.3"
   },
   "private": true,
   "engines": {
-    "dsh": "0.2.1-rc.2"
+    "dsh": "0.2.1-rc.3"
+  },
+  "dependencies": {
+    "koffi": "3.1.1"
   }
 }

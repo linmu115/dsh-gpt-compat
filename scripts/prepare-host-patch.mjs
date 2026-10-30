@@ -5,7 +5,7 @@ import os from 'node:os'
 import crypto from 'node:crypto'
 import { spawnSync, execFileSync } from 'node:child_process'
 import { host, project, hostPackages, assertHostSource } from './dev-host.mjs'
-if (!process.env.DSH_HOST_BASELINE?.trim()) throw new Error('Set DSH_HOST_BASELINE to the pristine official DSH 0.2.1-rc.2 source directory (commit 687f282e8625c6b8d11ff58211a90524be2e4317), separate from host-gpt-candidate')
+if (!process.env.DSH_HOST_BASELINE?.trim()) throw new Error('Set DSH_HOST_BASELINE to the pristine official DSH 0.2.1-rc.3 source directory (commit 1f81c047fc48fa190a683e469daa699857e9afe8), separate from host-gpt-candidate')
 const baseline = path.resolve(process.env.DSH_HOST_BASELINE)
 assertHostSource()
 if(baseline===host)throw new Error('Baseline must be a separate pristine source directory')
@@ -32,9 +32,9 @@ try{
   const sha=body=>crypto.createHash('sha256').update(body).digest('hex')
   changes.push({path:relative,beforeSha256:hasBefore?sha(old):null,afterSha256:hasAfter?sha(next):null})
  }
- const file=path.join(project,'host-patches/dsh-0.2.1-rc.2-gpt-dsh021.1.patch');fs.writeFileSync(file,patches.join(''))
+ const file=path.join(project,'host-patches/dsh-0.2.1-rc.3-gpt-dsh021rc3.1.patch');fs.writeFileSync(file,patches.join(''))
  execFileSync('git',['-C',baseline,'apply','--check',file],{stdio:'pipe'})
- fs.writeFileSync(path.join(project,'host-patches/dsh-0.2.1-rc.2-gpt-dsh021.1.manifest.json'),JSON.stringify({baselineVersion:'0.2.1-rc.2',baselineCommit:'687f282e8625c6b8d11ff58211a90524be2e4317',patchId:'gpt-dsh021.1',stockHostCompatible:false,patchSha256:crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),applyCheck:true,changes},null,2)+'\n')
+ fs.writeFileSync(path.join(project,'host-patches/dsh-0.2.1-rc.3-gpt-dsh021rc3.1.manifest.json'),JSON.stringify({baselineVersion:'0.2.1-rc.3',baselineCommit:'1f81c047fc48fa190a683e469daa699857e9afe8',patchId:'gpt-dsh021rc3.1',stockHostCompatible:false,patchSha256:crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),applyCheck:true,changes},null,2)+'\n')
  console.log(`Patch apply check passed against the pristine baseline: ${changes.length} files`)
 }finally{
  const expected=path.resolve(os.tmpdir())+path.sep+'gpt-dsh02-patch-'

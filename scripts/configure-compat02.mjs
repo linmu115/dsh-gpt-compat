@@ -42,4 +42,4 @@ fs.writeFileSync(path.join(host, 'tsconfig.compat02.json'), JSON.stringify({
     [name, values.map(value => path.relative(host, path.resolve(root, value)).replaceAll('\\', '/'))])) },
   include: packages.map(pkg => 'packages/' + pkg + '/src/**/*.ts'),
 }, null, 2) + '\n')
-console.log(JSON.stringify({ patchedSourcePackages: packages.length, baseline: '0.2.1-rc.2' }))
+console.log(JSON.stringify({ patchedSourcePackages: packages.length, baseline: '0.2.1-rc.3' }))

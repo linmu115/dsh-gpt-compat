@@ -4,7 +4,7 @@ import { LocalCpa, probeLocal, normalizeLocalLaunch } from '../src/accounts/loca
 
 const config = { executable: 'C:/CPA/cli-proxy-api.exe', configFile: 'C:/CPA/config.yaml', passwordFile: 'C:/CPA/key.txt' }
 it('normalizes Windows paths before comparing the running executable or passing arguments', () => {
-  expect(normalizeLocalLaunch(config)).toEqual({ executable: 'C:\\CPA\\cli-proxy-api.exe', configFile: 'C:\\CPA\\config.yaml', passwordFile: 'C:\\CPA\\key.txt' })
+  expect(normalizeLocalLaunch(config, 'win32')).toEqual({ executable: 'C:\\CPA\\cli-proxy-api.exe', configFile: 'C:\\CPA\\config.yaml', passwordFile: 'C:\\CPA\\key.txt' })
 })
 it('reports which configured file is unavailable before enabling the startup button', async () => {
   const local = new LocalCpa('http://127.0.0.1:8317', config, { probe: async () => 'stopped', launch: vi.fn(), check: async () => 'localPasswordMissing' })

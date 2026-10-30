@@ -1,7 +1,8 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { realpath } from 'node:fs/promises'
-import { win32 } from 'node:path'
+import { win32, posix } from 'node:path'
+import { readDarwinCpaProcesses } from './local-process-darwin.ts'
 
 /** Native Windows tokenization, including quoted paths and escaped quotes. */
 export const WINDOWS_ARGUMENT_PARSER = String.raw`
@@ -23,6 +24,8 @@ public static class DshCpaArguments {
 
 export interface CpaProcess { executable: string | null; args: string[] | null }
 export async function readCpaProcesses(executable: string): Promise<CpaProcess[]> {
+  if (process.platform === 'darwin') return readDarwinCpaProcesses(executable)
+  if (process.platform !== 'win32') throw new Error('Unsupported process inspection platform')
   const script = `$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[System.Text.UTF8Encoding]::new();
 ${WINDOWS_ARGUMENT_PARSER}
 $rows=@(Get-CimInstance Win32_Process | Where-Object { $_.Name -ieq $env:DSH_CPA_EXECUTABLE_NAME } | ForEach-Object {
@@ -43,7 +46,7 @@ ConvertTo-Json -InputObject $rows -Depth 4 -Compress`
 }
 
 /** A relative/default/duplicate config cannot be tied to a process cwd safely. */
-export function processConfig(args: readonly string[] | null): string | undefined {
+export function processConfig(args: readonly string[] | null, platform: string = process.platform): string | undefined {
   if (!args?.length) return undefined
   let config: string | undefined
   for (let i = 1; i < args.length; i++) {
@@ -61,12 +64,15 @@ export function processConfig(args: readonly string[] | null): string | undefine
       return undefined
     }
   }
-  return config && win32.isAbsolute(config) ? config : undefined
+  return config && (platform === 'win32' ? win32 : posix).isAbsolute(config) ? config : undefined
 }
 
 export type ProcessMatch = 'same' | 'none' | 'ambiguous'
-export async function matchCpaProcess(executable: string, configFile: string, rows: readonly CpaProcess[], canonical: (path: string) => Promise<string> = realpath): Promise<ProcessMatch> {
-  const key = async (value: string) => win32.normalize(await canonical(value)).toLowerCase()
+export async function matchCpaProcess(executable: string, configFile: string, rows: readonly CpaProcess[], canonical: (path: string) => Promise<string> = realpath, platform: string = process.platform): Promise<ProcessMatch> {
+  const key = async (value: string) => {
+    const resolved = await canonical(value)
+    return platform === 'win32' ? win32.normalize(resolved).toLowerCase() : posix.normalize(resolved)
+  }
   const expectedExe = await key(executable), expectedConfig = await key(configFile)
   let found = false
   for (const row of rows) {
@@ -74,7 +80,7 @@ export async function matchCpaProcess(executable: string, configFile: string, ro
     let actualExe: string
     try { actualExe = await key(row.executable) } catch { return 'ambiguous' }
     if (actualExe !== expectedExe) continue
-    const selected = processConfig(row.args)
+    const selected = processConfig(row.args, platform)
     if (!selected) return 'ambiguous'
     try { if (await key(selected) === expectedConfig) found = true } catch { return 'ambiguous' }
   }

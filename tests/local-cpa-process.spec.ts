@@ -10,32 +10,32 @@ const canonical = async (value: string) => win32.normalize(value)
 const process = (file: string): CpaProcess => ({ executable: config.executable, args: [config.executable, '--config', file] })
 
 it('reuses only the same canonical executable and config, not another config of that executable', async () => {
-  expect(await matchCpaProcess(config.executable, config.configFile, [process('D:/AI/CPA-Friends/config.yaml')], canonical)).toBe('none')
-  expect(await matchCpaProcess(config.executable, config.configFile, [process('d:\\ai\\cpa\\sub\\..\\CONFIG.yaml')], canonical)).toBe('same')
-  expect(await matchCpaProcess(config.executable, config.configFile, [{ executable: 'D:/Other/cli-proxy-api.exe', args: null }], canonical)).toBe('none')
+  expect(await matchCpaProcess(config.executable, config.configFile, [process('D:/AI/CPA-Friends/config.yaml')], canonical, 'win32')).toBe('none')
+  expect(await matchCpaProcess(config.executable, config.configFile, [process('d:\\ai\\cpa\\sub\\..\\CONFIG.yaml')], canonical, 'win32')).toBe('same')
+  expect(await matchCpaProcess(config.executable, config.configFile, [{ executable: 'D:/Other/cli-proxy-api.exe', args: null }], canonical, 'win32')).toBe('none')
 })
 it('compares realpath identities so a config alias is not treated as a distinct launch', async () => {
   const resolve = async (p: string) => p === 'D:/alias.yaml' ? win32.normalize(config.configFile) : canonical(p)
-  expect(await matchCpaProcess(config.executable, config.configFile, [process('D:/alias.yaml')], resolve)).toBe('same')
+  expect(await matchCpaProcess(config.executable, config.configFile, [process('D:/alias.yaml')], resolve, 'win32')).toBe('same')
 })
 it.each([
   null, [], ['cpa.exe'], ['cpa.exe', '--config'], ['cpa.exe', '--config', 'relative.yaml'],
   ['cpa.exe', '--config', config.configFile, '--config', config.configFile],
   ['cpa.exe', '--', '--config', config.configFile], ['cpa.exe', 'positional', '--config', config.configFile],
-])('rejects ambiguous process config %j', args => { expect(processConfig(args as string[] | null)).toBeUndefined() })
+])('rejects ambiguous process config %j', args => { expect(processConfig(args as string[] | null, 'win32')).toBeUndefined() })
 it('accepts Go config flag spellings and an unrelated password-file option', () => {
-  for (const args of [ ['x', '-config', config.configFile], ['x', `--config=${config.configFile}`], ['x', `-config=${config.configFile}`, '--local-management-password-file', config.passwordFile] ]) expect(processConfig(args)).toBe(config.configFile)
+  for (const args of [ ['x', '-config', config.configFile], ['x', `--config=${config.configFile}`], ['x', `-config=${config.configFile}`, '--local-management-password-file', config.passwordFile] ]) expect(processConfig(args, 'win32')).toBe(config.configFile)
 })
 it('does not ignore unreadable metadata or an ambiguous same-executable process', async () => {
-  expect(await matchCpaProcess(config.executable, config.configFile, [{ executable: null, args: null }], canonical)).toBe('ambiguous')
-  expect(await matchCpaProcess(config.executable, config.configFile, [{ executable: config.executable, args: null }], canonical)).toBe('ambiguous')
-  expect(await matchCpaProcess(config.executable, config.configFile, [process(config.configFile), { executable: config.executable, args: null }], canonical)).toBe('ambiguous')
+  expect(await matchCpaProcess(config.executable, config.configFile, [{ executable: null, args: null }], canonical, 'win32')).toBe('ambiguous')
+  expect(await matchCpaProcess(config.executable, config.configFile, [{ executable: config.executable, args: null }], canonical, 'win32')).toBe('ambiguous')
+  expect(await matchCpaProcess(config.executable, config.configFile, [process(config.configFile), { executable: config.executable, args: null }], canonical, 'win32')).toBe('ambiguous')
 })
 
 function ports(rows: CpaProcess[] = []) {
-  return { check: vi.fn(async () => undefined), canonical, lock: vi.fn(async () => ({ close: vi.fn(async () => {}) })), remove: vi.fn(async () => {}),
+  return { platform: 'win32', check: vi.fn(async () => undefined), canonical, lock: vi.fn(async () => ({ close: vi.fn(async () => {}) })), remove: vi.fn(async () => {}),
     probe: vi.fn(async () => 'stopped' as const), processes: vi.fn(async () => rows),
-    match: (exe: string, file: string, values: readonly CpaProcess[]) => matchCpaProcess(exe, file, values, canonical), spawn: vi.fn(async () => {}), }
+    match: (exe: string, file: string, values: readonly CpaProcess[]) => matchCpaProcess(exe, file, values, canonical, 'win32'), spawn: vi.fn(async () => {}), }
 }
 it('launches the requested configuration when the same executable owns a different configuration', async () => {
   const p = ports([process('D:/AI/CPA-Friends/config.yaml')])

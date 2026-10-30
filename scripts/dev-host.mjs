@@ -11,7 +11,7 @@ export const hostPackages = ['packages/core/agent', 'packages/core/agent-loop', 
   'packages/fs/fs', 'packages/fs/fs-local', 'packages/fs/fs-sandbox', 'packages/session/session-persistence-jsonl']
 export function assertHostSource() {
   const file = join(host, 'packages/core/session/package.json')
-  if (!existsSync(file) || JSON.parse(readFileSync(file, 'utf8')).version !== '0.2.1-rc.2') throw new Error('DSH_HOST_ROOT must name independently patched DSH 0.2.1-rc.2 source; older RC2 is unsupported')
+  if (!existsSync(file) || JSON.parse(readFileSync(file, 'utf8')).version !== '0.2.1-rc.3') throw new Error('DSH_HOST_ROOT must name independently patched DSH 0.2.1-rc.3 source; older RC2 is unsupported')
 }
 export function actualHostPackages() {
   const found = new Map()
@@ -29,7 +29,7 @@ export function actualHostPackages() {
   for (const name of readdirSync(join(host, 'apps'))) inspect(join(host, 'apps', name))
   inspect(join(host, 'native/system'))
   for (const name of readdirSync(join(host, 'native/system/packages'))) inspect(join(host, 'native/system/packages', name))
-  if (found.get('@deepseek-ai/dsh-session')?.pkg.version !== '0.2.1-rc.2' || found.get('@deepseek-ai/cordis')?.pkg.version !== '4.0.5') throw new Error('Exact DSH 0.2.1-rc.2 / Cordis 4.0.5 source distribution required')
+  if (found.get('@deepseek-ai/dsh-session')?.pkg.version !== '0.2.1-rc.3' || found.get('@deepseek-ai/cordis')?.pkg.version !== '4.0.5') throw new Error('Exact DSH 0.2.1-rc.3 / Cordis 4.0.5 source distribution required')
   return found
 }
 export function dependencyDirectory(name) {
